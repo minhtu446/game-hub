@@ -616,9 +616,15 @@ body {
       canvas.height = H;
       document.getElementById('caroMenu').style.display = 'none';
       canvas.style.display = 'block';
-      statusText = 'Lượt của bạn (X)';
       initGame();
-      draw();
+      if (Math.random() < 0.5) {
+        statusText = 'AI đi trước (O)...';
+        draw();
+        aiMove();
+      } else {
+        statusText = 'Lượt của bạn (X)';
+        draw();
+      }
     });
   });
 
