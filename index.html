@@ -130,7 +130,7 @@ h1 {
       <div class="desc">Đấu trí với AI bất bại trên bàn 30x30!</div>
     </div>
   </div>
-  <div class="footer">Chọn game để bắt đầu</div>
+  <div class="footer">Chọn game để bắt đầu — Phím: <b>F</b> Flappy · <b>C</b> Caro · <b>M</b> Volume</div>
 </div>
 
 <button id="backBtn" onclick="closeGame()" style="display:none">← Quay lại</button>
@@ -183,6 +183,11 @@ function toggleVolume() {
 }
 
 document.addEventListener('keydown', e => {
+  const menu = document.getElementById('menu');
+  if (menu.style.display !== 'none') {
+    if (e.key === 'f' || e.key === 'F') { e.preventDefault(); openGame('flappy'); return; }
+    if (e.key === 'c' || e.key === 'C') { e.preventDefault(); openGame('caro'); return; }
+  }
   if (e.key === 'm' || e.key === 'M') {
     const active = document.querySelector('.game-container.active');
     if (active) { e.preventDefault(); toggleVolume(); }
