@@ -629,7 +629,7 @@ body {
 })();
 </script>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js" onerror="window.peerjsError=true"></script>
+<script src="peerjs.min.js"></script>
 <script>
 (function() {
   let statusText = 'Lượt của bạn (X)';
@@ -1141,7 +1141,7 @@ body {
   }
 
   function connectPeer(hostId) {
-    if (typeof Peer === 'undefined') { document.getElementById('caroJoinError').style.display = ''; document.getElementById('caroJoinError').textContent = 'PeerJS chưa tải xong'; return; }
+    if (typeof Peer === 'undefined') { document.getElementById('caroJoinError').style.display = ''; document.getElementById('caroJoinError').textContent = 'Lỗi: PeerJS không tải được'; return; }
     document.getElementById('caroJoinError').style.display = 'none'; document.getElementById('caroJoinError').textContent = 'Đang kết nối...'; document.getElementById('caroJoinError').style.display = '';
     try { peer = new Peer(); } catch (e) { document.getElementById('caroJoinError').style.display = ''; document.getElementById('caroJoinError').textContent = 'Lỗi: ' + e.message; return; }
     peer.on('open', function(id) {
@@ -1180,10 +1180,7 @@ body {
     showCaroScreen('caroCreate');
     document.getElementById('caroCodeDisplay').textContent = 'Đang kết nối...';
     if (typeof Peer === 'undefined') {
-      var msg = 'PeerJS chưa tải xong';
-      if (window.peerjsError) msg += ' (lỗi tải CDN)';
-      else msg += ' - thử F5';
-      document.getElementById('caroCodeDisplay').textContent = msg;
+      document.getElementById('caroCodeDisplay').textContent = 'Lỗi: PeerJS không tải được';
       return;
     }
     var connected = false;
