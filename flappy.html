@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flappy Bird</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: #1a1a2e;
+  overflow: hidden;
+}
+canvas {
+  border: 4px solid #5c3a1e;
+  border-radius: 0;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  cursor: pointer;
+  box-shadow: 0 0 0 2px #3a2510, 0 8px 32px rgba(0,0,0,0.5);
+  max-width: 90vw;
+  max-height: 85vh;
+  width: auto;
+  height: auto;
+}
+#soundBtn {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  background: rgba(0,0,0,0.4);
+  border: 2px solid rgba(255,255,255,0.2);
+  border-radius: 4px;
+  width: 44px;
+  height: 44px;
+  font-size: 20px;
+  cursor: pointer;
+  color: #fff;
+  transition: background 0.2s;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: monospace;
+}
+#soundBtn:hover { background: rgba(255,255,255,0.2); }
+#loading {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-family: monospace;
+  font-size: 18px;
+  background: #1a1a2e;
+  z-index: 20;
+}
+</style>
+</head>
+<body>
+<div id="loading">Loading...</div>
+<canvas id="game"></canvas>
+<button id="soundBtn">🔊</button>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const soundBtn = document.getElementById('soundBtn');
+ctx.imageSmoothingEnabled = false;
+
+const W = 288, H = 512;
+canvas.width = W;
+canvas.height = H;
+
+const BIRD_X = 64;
+const PIPE_W = 52;
+let GRAVITY, FLAP, PIPE_GAP, PIPE_SPEED;
+
+const DIFFICULTIES = {
+  easy:   { gravity: 0.35, flap: -6.5, pipeGap: 155, pipeSpeed: 1.6, label: 'EASY' },
+  medium: { gravity: 0.45, flap: -7.5, pipeGap: 130, pipeSpeed: 2.2, label: 'MEDIUM' },
+  hard:   { gravity: 0.55, flap: -8.5, pipeGap: 105, pipeSpeed: 2.8, label: 'HARD' },
+};
+let difficulty = 'medium';
+
+function applyDifficulty(d) {
+  difficulty = d;
+  const cfg = DIFFICULTIES[d];
+  GRAVITY = cfg.gravity;
+  FLAP = cfg.flap;
+  PIPE_GAP = cfg.pipeGap;
+  PIPE_SPEED = cfg.pipeSpeed;
+}
+applyDifficulty('medium');
+
+let bird, pipes, score, bestScore, gameOver, started;
+let soundEnabled = true;
+let audioCtx = null;
+
+// Assets
+const assets = {
+  bg: null, base: null, pipe: null,
+  bird0: null, bird1: null, bird2: null,
+  gameover: null, message: null,
+  nums: [],
+};
+const audioFiles = {};
+
+function loadImage(src) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => { console.warn('Failed to load:', src); resolve(null); };
+    img.src = src;
+  });
+}
+
+async function loadAssets() {
+  const base = 'assets/';
+  const [bg, baseImg, pipe, b0, b1, b2, go, msg] = await Promise.all([
+    loadImage(base + 'background-day.png'),
+    loadImage(base + 'base.png'),
+    loadImage(base + 'pipe-green.png'),
+    loadImage(base + 'yellowbird-downflap.png'),
+    loadImage(base + 'yellowbird-midflap.png'),
+    loadImage(base + 'yellowbird-upflap.png'),
+    loadImage(base + 'gameover.png'),
+    loadImage(base + 'message.png'),
+  ]);
+  assets.bg = bg;
+  assets.base = baseImg;
+  assets.pipe = pipe;
+  assets.bird0 = b0;
+  assets.bird1 = b1;
+  assets.bird2 = b2;
+  assets.gameover = go;
+  assets.message = msg;
+
+  for (let i = 0; i <= 9; i++) {
+    assets.nums[i] = await loadImage(base + i + '.png');
+  }
+}
+
+// Audio - use HTMLAudioElement for reliable local playback
+const sfx = {};
+function initAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  preloadSFX();
+}
+function preloadSFX() {
+  const names = ['wing', 'point', 'hit', 'die', 'swoosh'];
+  for (const name of names) {
+    if (!sfx[name]) {
+      const a = new Audio('assets/' + name + '.wav');
+      a.volume = 0.5;
+      sfx[name] = a;
+    }
+  }
+}
+function playSFX(name) {
+  if (!soundEnabled) return;
+  try {
+    const a = sfx[name];
+    if (a) {
+      a.currentTime = 0;
+      a.play().catch(() => {});
+    }
+  } catch(e) {}
+}
+
+// BGM
+let bgmNodes = [];
+function stopBGM() {
+  for (const n of bgmNodes) { try { n.stop(); } catch(e) {} }
+  bgmNodes = [];
+}
+const BGM_NOTES = [
+  [262,0.18],[330,0.18],[392,0.18],[523,0.28],
+  [392,0.12],[349,0.12],[330,0.18],[262,0.28],
+  [294,0.18],[349,0.18],[440,0.18],[587,0.28],
+  [440,0.12],[392,0.12],[349,0.18],[294,0.28],
+  [262,0.18],[330,0.18],[392,0.18],[523,0.28],
+  [392,0.12],[349,0.12],[330,0.18],[262,0.28],
+  [330,0.12],[392,0.12],[523,0.18],[659,0.18],
+  [523,0.12],[392,0.12],[330,0.18],[262,0.35],
+];
+function playBGM() {
+  if (!soundEnabled || !audioCtx) return;
+  stopBGM();
+  let t = audioCtx.currentTime + 0.1;
+  for (const [f,d] of BGM_NOTES) {
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = 'square';
+    o.frequency.setValueAtTime(f, t);
+    g.gain.setValueAtTime(0.035, t);
+    g.gain.setValueAtTime(0.035, t+d-0.04);
+    g.gain.exponentialRampToValueAtTime(0.001, t+d);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(t); o.stop(t+d);
+    bgmNodes.push(o);
+    t += d;
+  }
+}
+
+function toggleSound() {
+  soundEnabled = !soundEnabled;
+  soundBtn.textContent = soundEnabled ? '🔊' : '🔇';
+  if (soundEnabled && started && !gameOver) { initAudio(); playBGM(); }
+  else if (!soundEnabled) stopBGM();
+}
+soundBtn.addEventListener('click', toggleSound);
+
+// Game state
+function reset() {
+  bird = { y: H/2, vy: 0, frame: 0, flapTime: 0 };
+  pipes = [];
+  score = 0; gameOver = false; started = false;
+}
+reset();
+bestScore = parseInt(localStorage.getItem('flappyBest') || '0');
+
+function addPipe() {
+  const minY = 60, maxY = H - PIPE_GAP - 60;
+  const topH = Math.floor(Math.random() * (maxY - minY + 1)) + minY;
+  pipes.push({ x: W, topH, scored: false });
+}
+
+function flap() {
+  initAudio();
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  if (gameOver) { stopBGM(); reset(); return; }
+  if (!started) { started = true; if (soundEnabled) playBGM(); }
+  bird.vy = FLAP;
+  bird.flapTime = 8;
+  playSFX('wing');
+}
+
+canvas.addEventListener('click', e => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = (e.clientX - rect.left) * (W / rect.width);
+  const my = (e.clientY - rect.top) * (H / rect.height);
+
+  if (!started && !gameOver) {
+    const btnW = 64, btnH = 22, gap = 8;
+    const totalW = btnW * 3 + gap * 2;
+    const startX = Math.floor((W - totalW) / 2);
+    const btnY = Math.floor(H/2 + 30);
+    const diffs = ['easy', 'medium', 'hard'];
+    for (let i = 0; i < 3; i++) {
+      const bx = startX + i * (btnW + gap);
+      if (mx >= bx && mx <= bx + btnW && my >= btnY && my <= btnY + btnH) {
+        applyDifficulty(diffs[i]);
+        return;
+      }
+    }
+  }
+  flap();
+});
+document.addEventListener('keydown', e => {
+  if (!started && !gameOver) {
+    if (e.key === '1') { applyDifficulty('easy'); return; }
+    if (e.key === '2') { applyDifficulty('medium'); return; }
+    if (e.key === '3') { applyDifficulty('hard'); return; }
+  }
+  if (e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault(); flap(); }
+});
+
+function update() {
+  if (!started || gameOver) return;
+
+  bird.vy += GRAVITY;
+  bird.y += bird.vy;
+  bird.flapTime = Math.max(0, bird.flapTime - 1);
+
+  // animation frame
+  bird.frame = (bird.frame + 1) % 30;
+  const birdImg = bird.flapTime > 0 ? assets.bird2 : (bird.frame < 10 ? assets.bird0 : (bird.frame < 20 ? assets.bird1 : assets.bird2));
+
+  const bh = birdImg ? birdImg.height : 24;
+  if (bird.y + bh/2 > H - 16 || bird.y - bh/2 < 0) {
+    gameOver = true; playSFX('hit');
+    setTimeout(() => playSFX('die'), 200);
+    stopBGM();
+    if (score > bestScore) { bestScore = score; localStorage.setItem('flappyBest', bestScore); }
+    return;
+  }
+
+  if (pipes.length === 0 || pipes[pipes.length-1].x < W - 180) addPipe();
+
+  for (let i = pipes.length-1; i >= 0; i--) {
+    const p = pipes[i];
+    p.x -= PIPE_SPEED;
+    if (!p.scored && p.x + PIPE_W < BIRD_X) { p.scored = true; score++; playSFX('point'); }
+    if (p.x + PIPE_W < 0) { pipes.splice(i,1); continue; }
+
+    const bx = BIRD_X, by = bird.y;
+    const br = 8;
+    if (bx + br > p.x + 4 && bx - br < p.x + PIPE_W - 4) {
+      if (by - br < p.topH || by + br > p.topH + PIPE_GAP) {
+        gameOver = true; playSFX('hit');
+        setTimeout(() => playSFX('die'), 200);
+        stopBGM();
+        if (score > bestScore) { bestScore = score; localStorage.setItem('flappyBest', bestScore); }
+        return;
+      }
+    }
+  }
+}
+
+function drawNum(n, x, y, center) {
+  const digits = String(n).split('');
+  let totalW = 0, count = 0;
+  for (const d of digits) {
+    if (assets.nums[+d]) totalW += assets.nums[+d].width;
+    else count++;
+  }
+  totalW += count * 14;
+  let sx = center ? x - totalW/2 : x;
+  for (const ch of digits) {
+    const img = assets.nums[+ch];
+    if (img) {
+      const w = img.width, h = img.height;
+      ctx.drawImage(img, 0, 0, w, h, Math.floor(sx), Math.floor(y), w, h);
+      sx += w;
+    } else {
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 28px monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText(ch, Math.floor(sx), Math.floor(y + 24));
+      sx += 14;
+    }
+  }
+}
+
+function draw() {
+  // background
+  if (assets.bg) {
+    ctx.drawImage(assets.bg, 0, 0);
+  } else {
+    ctx.fillStyle = '#4DC9F6';
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // pipes
+  for (const p of pipes) {
+    if (assets.pipe) {
+      const ph = assets.pipe.height;
+      ctx.save();
+      ctx.translate(Math.floor(p.x) + PIPE_W/2, Math.floor(p.topH));
+      ctx.scale(1, -1);
+      ctx.drawImage(assets.pipe, -PIPE_W/2, 0, PIPE_W, ph);
+      ctx.restore();
+      ctx.drawImage(assets.pipe, Math.floor(p.x), Math.floor(p.topH + PIPE_GAP), PIPE_W, H - p.topH - PIPE_GAP - 16);
+    }
+  }
+
+  // ground
+  if (assets.base) {
+    const baseW = assets.base.width;
+    const gx = Math.floor(Date.now() * 0.05) % baseW;
+    ctx.drawImage(assets.base, gx, H - 16, baseW, assets.base.height);
+    ctx.drawImage(assets.base, gx - baseW, H - 16, baseW, assets.base.height);
+  } else {
+    ctx.fillStyle = '#8BC34A';
+    ctx.fillRect(0, H - 16, W, 16);
+  }
+
+  // bird
+  const birdImg = bird.flapTime > 0 ? assets.bird2 : (bird.frame < 10 ? assets.bird0 : (bird.frame < 20 ? assets.bird1 : assets.bird2));
+  if (birdImg) {
+    const bw = birdImg.width, bh = birdImg.height;
+    ctx.save();
+    ctx.translate(Math.floor(BIRD_X), Math.floor(bird.y));
+    const rot = Math.min(Math.max(bird.vy * 0.04, -0.5), 0.5);
+    ctx.rotate(rot);
+    ctx.drawImage(birdImg, -Math.floor(bw/2), -Math.floor(bh/2));
+    ctx.restore();
+  } else {
+    ctx.fillStyle = '#FFD54F';
+    ctx.beginPath();
+    ctx.ellipse(BIRD_X, bird.y, 12, 14, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // score
+  if (started && !gameOver) {
+    drawNum(score, W/2, 35, true);
+  }
+
+  // High Score & overlay
+  if (!started && !gameOver) {
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 14px Pixel, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('High Score: ' + bestScore, Math.floor(W/2), H - 60);
+
+    if (assets.message) {
+      const mw = assets.message.width, mh = assets.message.height;
+      ctx.drawImage(assets.message, Math.floor((W - mw)/2), Math.floor((H - mh)/2) - 20);
+    } else {
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 28px Pixel, monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('FLAPPY BIRD', Math.floor(W/2), Math.floor(H/2) - 40);
+    }
+
+    // difficulty buttons
+    const btnW = 64, btnH = 22, gap = 8;
+    const totalW = btnW * 3 + gap * 2;
+    const startX = Math.floor((W - totalW) / 2);
+    const btnY = Math.floor(H/2 + 30);
+    const diffs = ['easy', 'medium', 'hard'];
+    for (let i = 0; i < 3; i++) {
+      const d = diffs[i];
+      const bx = startX + i * (btnW + gap);
+      const active = difficulty === d;
+      ctx.fillStyle = active ? '#FFD54F' : 'rgba(255,255,255,0.2)';
+      ctx.fillRect(bx, btnY, btnW, btnH);
+      ctx.strokeStyle = active ? '#5D4037' : 'rgba(255,255,255,0.4)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(bx, btnY, btnW, btnH);
+      ctx.fillStyle = active ? '#5D4037' : '#fff';
+      ctx.font = 'bold 11px Pixel, monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(DIFFICULTIES[d].label, Math.floor(bx + btnW/2), Math.floor(btnY + btnH/2));
+      ctx.textBaseline = 'alphabetic';
+    }
+    // press space hint
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.font = '12px Pixel, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('Click or press Space', Math.floor(W/2), Math.floor(H/2 + 75));
+  }
+  if (gameOver) {
+    if (assets.gameover) {
+      const gw = assets.gameover.width, gh = assets.gameover.height;
+      ctx.drawImage(assets.gameover, Math.floor((W - gw)/2), Math.floor((H - gh)/2) - 30);
+    }
+    const cardX = Math.floor(W/2 - 68), cardY = Math.floor(H/2 + 15);
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(cardX, cardY, 136, 56);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 16px Pixel, monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText('SCORE  ' + score, Math.floor(W/2), cardY + 10);
+    ctx.fillText('BEST   ' + bestScore, Math.floor(W/2), cardY + 32);
+    ctx.textBaseline = 'alphabetic';
+  }
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+
+loadAssets().finally(() => {
+  preloadSFX();
+  document.getElementById('loading').style.display = 'none';
+  loop();
+});
+</script>
+</body>
+</html>

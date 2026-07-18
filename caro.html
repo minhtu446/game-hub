@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Caro AI - 20x20</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: #1a1a2e;
+  font-family: 'Segoe UI', sans-serif;
+  overflow: hidden;
+}
+canvas {
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 0 40px rgba(0,0,0,0.5);
+}
+#status {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #fff;
+  font-size: 18px;
+  font-weight: bold;
+  background: rgba(0,0,0,0.6);
+  padding: 8px 24px;
+  border-radius: 8px;
+  z-index: 10;
+  text-align: center;
+  min-width: 200px;
+}
+#restartBtn {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255,255,255,0.1);
+  border: 2px solid rgba(255,255,255,0.2);
+  border-radius: 8px;
+  padding: 10px 32px;
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+  z-index: 10;
+  transition: background 0.2s;
+}
+#restartBtn:hover { background: rgba(255,255,255,0.2); }
+</style>
+</head>
+<body>
+<div id="status">Đang suy nghĩ...</div>
+<canvas id="game"></canvas>
+
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const statusEl = document.getElementById('status');
+
+const SIZE = 30;
+const CELL = 22;
+const PADDING = 24;
+const BOARD = CELL * SIZE;
+const W = BOARD + PADDING * 2;
+const H = BOARD + PADDING * 2;
+canvas.width = W;
+canvas.height = H;
+
+let board = [];
+let currentPlayer = 1; // 1 = player (X), -1 = AI (O)
+let gameOver = false;
+let winner = null;
+let thinking = false;
+let audioCtx = null;
+
+const EMPTY = 0, PLAYER = 1, AI = -1;
+
+// Audio
+function initAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+function playTone(freq, dur, type = 'sine', vol = 0.15) {
+  if (!audioCtx) return;
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = type;
+  o.frequency.setValueAtTime(freq, audioCtx.currentTime);
+  g.gain.setValueAtTime(vol, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(); o.stop(audioCtx.currentTime + dur);
+}
+function playNoise(dur, vol = 0.04) {
+  if (!audioCtx) return;
+  const bs = audioCtx.sampleRate * dur;
+  const b = audioCtx.createBuffer(1, bs, audioCtx.sampleRate);
+  const d = b.getChannelData(0);
+  for (let i = 0; i < bs; i++) d[i] = Math.random() * 2 - 1;
+  const s = audioCtx.createBufferSource();
+  s.buffer = b;
+  const g = audioCtx.createGain();
+  g.gain.setValueAtTime(vol, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+  s.connect(g); g.connect(audioCtx.destination);
+  s.start();
+}
+function playPlace() {
+  playTone(800, 0.08, 'sine', 0.12);
+  playNoise(0.03, 0.03);
+}
+function playWin() {
+  setTimeout(() => playTone(523, 0.15, 'sine', 0.15), 0);
+  setTimeout(() => playTone(659, 0.15, 'sine', 0.15), 150);
+  setTimeout(() => playTone(784, 0.15, 'sine', 0.15), 300);
+  setTimeout(() => playTone(1047, 0.3, 'sine', 0.18), 450);
+}
+function playLose() {
+  playTone(400, 0.2, 'sawtooth', 0.1);
+  setTimeout(() => playTone(300, 0.2, 'sawtooth', 0.1), 200);
+  setTimeout(() => playTone(200, 0.4, 'sawtooth', 0.12), 400);
+}
+
+function initBoard() {
+  board = Array.from({ length: SIZE }, () => Array(SIZE).fill(EMPTY));
+  currentPlayer = PLAYER;
+  gameOver = false;
+  winner = null;
+  thinking = false;
+  statusEl.textContent = 'Lượt của bạn (X)';
+}
+
+initBoard();
+
+function checkWin(r, c, player) {
+  const dirs = [[1,0],[0,1],[1,1],[1,-1]];
+  for (const [dr, dc] of dirs) {
+    let count = 1;
+    for (let d = -1; d <= 1; d += 2) {
+      let nr = r + dr * d, nc = c + dc * d;
+      while (nr >= 0 && nr < SIZE && nc >= 0 && nc < SIZE && board[nr][nc] === player) {
+        count++;
+        nr += dr * d;
+        nc += dc * d;
+      }
+    }
+    if (count >= 5) return true;
+  }
+  return false;
+}
+
+function isFull() {
+  for (let r = 0; r < SIZE; r++)
+    for (let c = 0; c < SIZE; c++)
+      if (board[r][c] === EMPTY) return false;
+  return true;
+}
+
+function placeMove(r, c, player) {
+  board[r][c] = player;
+  playPlace();
+  if (checkWin(r, c, player)) {
+    gameOver = true;
+    winner = player;
+    if (player === PLAYER) { statusEl.textContent = 'Bạn thắng! 🎉'; playWin(); }
+    else { statusEl.textContent = 'AI thắng! 🤖'; playLose(); }
+    return true;
+  }
+  if (isFull()) {
+    gameOver = true;
+    statusEl.textContent = 'Hòa!';
+    playTone(440, 0.3, 'sine', 0.1);
+    return true;
+  }
+  return false;
+}
+
+// ===== AI BẤT BẠI =====
+const DIRECTIONS = [[1,0],[0,1],[1,1],[1,-1]];
+
+function analyzeDir(r, c, dr, dc, player) {
+  let count = 0, open = 0;
+  for (let d = 1; d <= 4; d++) {
+    const nr = r + dr * d, nc = c + dc * d;
+    if (nr < 0 || nr >= SIZE || nc < 0 || nc >= SIZE) break;
+    if (board[nr][nc] === player) count++;
+    else { if (board[nr][nc] === EMPTY) open++; break; }
+  }
+  for (let d = 1; d <= 4; d++) {
+    const nr = r - dr * d, nc = c - dc * d;
+    if (nr < 0 || nr >= SIZE || nc < 0 || nc >= SIZE) break;
+    if (board[nr][nc] === player) count++;
+    else { if (board[nr][nc] === EMPTY) open++; break; }
+  }
+  return { count, open };
+}
+
+// Pattern score table
+function patScore(count, open) {
+  if (count >= 5) return 100000000;
+  if (count === 4) return open >= 2 ? 20000000 : (open === 1 ? 800000 : 10000);
+  if (count === 3) return open >= 2 ? 150000 : (open === 1 ? 15000 : 500);
+  if (count === 2) return open >= 2 ? 3000 : (open === 1 ? 300 : 20);
+  if (count === 1) return open >= 2 ? 30 : (open === 1 ? 6 : 1);
+  return 0;
+}
+
+// Cell threat level
+function cellThreat(r, c, player) {
+  board[r][c] = player;
+  const win = checkWin(r, c, player);
+  board[r][c] = EMPTY;
+  if (win) return 100;
+
+  let threat = 0;
+  for (const [dr, dc] of DIRECTIONS) {
+    const a = analyzeDir(r, c, dr, dc, player);
+    if (a.count >= 4 && a.open >= 1) threat = Math.max(threat, 10);
+    else if (a.count >= 3 && a.open >= 2) threat = Math.max(threat, 5);
+  }
+  return threat;
+}
+
+// Check if move creates double threat (forced win next move)
+function hasDoubleThreatMove(r, c, player) {
+  board[r][c] = player;
+  let threats = 0;
+  for (const [dr, dc] of DIRECTIONS) {
+    const a = analyzeDir(r, c, dr, dc, player);
+    if (a.count >= 3 && a.open >= 2) threats++;
+    if (a.count >= 4 && a.open >= 1) threats += 2;
+  }
+  board[r][c] = EMPTY;
+  return threats >= 2;
+}
+
+// Quick heuristic for move ordering
+function heuristic(r, c) {
+  let myScore = 0, oppScore = 0;
+  for (const [dr, dc] of DIRECTIONS) {
+    const a = analyzeDir(r, c, dr, dc, AI);
+    const b = analyzeDir(r, c, dr, dc, PLAYER);
+    myScore += patScore(a.count, a.open);
+    oppScore += patScore(b.count, b.open);
+  }
+  return myScore * 1.2 + oppScore;
+}
+
+function getCandidates() {
+  const list = [];
+  const visited = new Set();
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      if (board[r][c] !== EMPTY) continue;
+      for (let dr = -2; dr <= 2; dr++) {
+        for (let dc = -2; dc <= 2; dc++) {
+          if (dr === 0 && dc === 0) continue;
+          const nr = r + dr, nc = c + dc;
+          if (nr >= 0 && nr < SIZE && nc >= 0 && nc < SIZE && board[nr][nc] !== EMPTY) {
+            const key = r * SIZE + c;
+            if (!visited.has(key)) { visited.add(key); list.push({ r, c, s: heuristic(r, c) }); }
+          }
+        }
+      }
+    }
+  }
+  // Sort: always check threat moves first
+  list.sort((a, b) => {
+    const ta = cellThreat(a.r, a.c, AI) + cellThreat(a.r, a.c, PLAYER);
+    const tb = cellThreat(b.r, b.c, AI) + cellThreat(b.r, b.c, PLAYER);
+    if (ta !== tb) return tb - ta;
+    return b.s - a.s;
+  });
+  return list;
+}
+
+// Full board evaluation
+function evaluateBoard() {
+  let score = 0;
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      if (board[r][c] === EMPTY) continue;
+      for (const [dr, dc] of DIRECTIONS) {
+        const a = analyzeDir(r, c, dr, dc, board[r][c]);
+        if (board[r][c] === AI) score += patScore(a.count, a.open);
+        else score -= patScore(a.count, a.open) * 1.1;
+      }
+    }
+  }
+  return score;
+}
+
+// Fast candidate generation for search nodes
+function getCandsFast() {
+  const list = [];
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      if (board[r][c] !== EMPTY) continue;
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+          if (dr === 0 && dc === 0) continue;
+          const nr = r + dr, nc = c + dc;
+          if (nr >= 0 && nr < SIZE && nc >= 0 && nc < SIZE && board[nr][nc] !== EMPTY) {
+            list.push({ r, c }); dr = 2; dc = 2; // break out of loops
+          }
+        }
+      }
+    }
+  }
+  return list;
+}
+
+// Alpha-beta with per-node candidate generation
+function alphaBeta(depth, alpha, beta, isMax, maxDepth) {
+  const player = isMax ? AI : PLAYER;
+
+  if (depth <= 0) {
+    return isMax ? evaluateBoard() : -evaluateBoard();
+  }
+
+  const cands = getCandsFast();
+  if (cands.length === 0) return 0;
+
+  // Sort candidates by threat level (quick)
+  cands.sort((a, b) => {
+    const ta = cellThreat(a.r, a.c, AI) + cellThreat(a.r, a.c, PLAYER);
+    const tb = cellThreat(b.r, b.c, AI) + cellThreat(b.r, b.c, PLAYER);
+    return tb - ta;
+  });
+
+  const width = Math.min(
+    depth >= maxDepth - 1 ? 18 : (depth >= maxDepth - 2 ? 14 : 10),
+    cands.length
+  );
+
+  if (isMax) {
+    let best = -Infinity;
+    for (let i = 0; i < width; i++) {
+      const { r, c } = cands[i];
+      // Check if AI can win immediately
+      board[r][c] = AI;
+      if (checkWin(r, c, AI)) { board[r][c] = EMPTY; return 100000000 - (maxDepth - depth) * 10; }
+      board[r][c] = EMPTY;
+
+      board[r][c] = AI;
+      const v = alphaBeta(depth - 1, alpha, beta, false, maxDepth);
+      board[r][c] = EMPTY;
+      if (v > best) best = v;
+      if (v > alpha) alpha = v;
+      if (beta <= alpha) break;
+    }
+    return best;
+  } else {
+    let best = Infinity;
+    for (let i = 0; i < width; i++) {
+      const { r, c } = cands[i];
+      // Check if opponent can win immediately
+      board[r][c] = PLAYER;
+      if (checkWin(r, c, PLAYER)) { board[r][c] = EMPTY; return -100000000 + (maxDepth - depth) * 10; }
+      board[r][c] = EMPTY;
+
+      board[r][c] = PLAYER;
+      const v = alphaBeta(depth - 1, alpha, beta, true, maxDepth);
+      board[r][c] = EMPTY;
+      if (v < best) best = v;
+      if (v < beta) beta = v;
+      if (beta <= alpha) break;
+    }
+    return best;
+  }
+}
+
+// Iterative deepening search
+function iterativeDeepening(timeLimitMs) {
+  const start = performance.now();
+  const candidates = getCandidates();
+  if (candidates.length === 0) return null;
+
+  let bestMove = candidates[0];
+  let bestScore = -Infinity;
+
+  // Search from depth 3 up to max
+  for (let depth = 3; depth <= 12; depth++) {
+    let currentBest = null;
+    let currentScore = -Infinity;
+
+    const width = Math.min(depth <= 4 ? 18 : (depth <= 6 ? 14 : 10), candidates.length);
+
+    for (let i = 0; i < width; i++) {
+      const { r, c } = candidates[i];
+      board[r][c] = AI;
+      const score = alphaBeta(depth - 1, -Infinity, Infinity, false, depth);
+      board[r][c] = EMPTY;
+
+      if (score > currentScore) {
+        currentScore = score;
+        currentBest = { r, c };
+      }
+
+      if (performance.now() - start > timeLimitMs) { depth = 999; break; }
+    }
+
+    if (depth < 999) {
+      if (currentBest) { bestMove = currentBest; bestScore = currentScore; }
+      if (currentScore >= 99000000) break;
+    }
+
+    if (performance.now() - start > timeLimitMs) break;
+  }
+
+  return bestMove;
+}
+
+function aiMove() {
+  if (gameOver || thinking) return;
+  thinking = true;
+  statusEl.textContent = 'AI đang suy nghĩ...';
+
+  setTimeout(() => {
+    if (gameOver) { thinking = false; return; }
+
+    // 1. Win immediately
+    for (const { r, c } of getCandidates()) {
+      board[r][c] = AI;
+      if (checkWin(r, c, AI)) { board[r][c] = EMPTY; placeMove(r, c, AI); doneAI(); return; }
+      board[r][c] = EMPTY;
+    }
+
+    // 2. Block opponent's win
+    for (const { r, c } of getCandidates()) {
+      board[r][c] = PLAYER;
+      if (checkWin(r, c, PLAYER)) { board[r][c] = EMPTY; placeMove(r, c, AI); doneAI(); return; }
+      board[r][c] = EMPTY;
+    }
+
+    // 3. Force win with double threat
+    for (const { r, c } of getCandidates()) {
+      if (hasDoubleThreatMove(r, c, AI)) { placeMove(r, c, AI); doneAI(); return; }
+    }
+
+    // 4. Block opponent's double threat
+    for (const { r, c } of getCandidates()) {
+      if (hasDoubleThreatMove(r, c, PLAYER)) { placeMove(r, c, AI); doneAI(); return; }
+    }
+
+    // 5. Opening moves
+    let emptyCount = 0;
+    for (let r = 0; r < SIZE; r++)
+      for (let c = 0; c < SIZE; c++)
+        if (board[r][c] === EMPTY) emptyCount++;
+
+    if (emptyCount === SIZE * SIZE) { placeMove(Math.floor(SIZE/2), Math.floor(SIZE/2), AI); doneAI(); return; }
+    if (emptyCount === SIZE * SIZE - 1) {
+      const mid = Math.floor(SIZE/2);
+      for (let dr = -1; dr <= 1; dr++)
+        for (let dc = -1; dc <= 1; dc++) {
+          const nr = mid + dr, nc = mid + dc;
+          if (board[nr][nc] === EMPTY) { placeMove(nr, nc, AI); doneAI(); return; }
+        }
+    }
+
+    // 6. Deep search with time limit
+    const timeLimit = emptyCount > 850 ? 1500 : (emptyCount > 600 ? 2000 : 2500);
+    const best = iterativeDeepening(timeLimit);
+
+    if (best) {
+      placeMove(best.r, best.c, AI);
+    }
+    doneAI();
+  }, 50);
+}
+
+function doneAI() {
+  if (!gameOver) {
+    currentPlayer = PLAYER;
+    statusEl.textContent = 'Lượt của bạn (X)';
+  }
+  thinking = false;
+  draw();
+}
+
+// ===== DRAW =====
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+
+  // bg
+  ctx.fillStyle = '#F5E6CA';
+  ctx.fillRect(0, 0, W, H);
+
+  // border
+  ctx.strokeStyle = '#C4A97D';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(PADDING - 4, PADDING - 4, BOARD + 8, BOARD + 8);
+
+  // grid - (SIZE+1) lines for SIZE cells
+  ctx.strokeStyle = '#A0825A';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= SIZE; i++) {
+    const pos = PADDING + i * CELL;
+    ctx.beginPath();
+    ctx.moveTo(PADDING, pos);
+    ctx.lineTo(PADDING + BOARD, pos);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(pos, PADDING);
+    ctx.lineTo(pos, PADDING + BOARD);
+    ctx.stroke();
+  }
+
+  // star points at cell centers
+  const stars = [[4,4],[4,14],[4,24],[14,4],[14,14],[14,24],[24,4],[24,14],[24,24]];
+  ctx.fillStyle = '#A0825A';
+  for (const [r, c] of stars) {
+    const x = PADDING + (c + 0.5) * CELL, y = PADDING + (r + 0.5) * CELL;
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // pieces - centered in each cell
+  const half = CELL / 2 - 4;
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      if (board[r][c] === EMPTY) continue;
+      const x = PADDING + (c + 0.5) * CELL, y = PADDING + (r + 0.5) * CELL;
+      if (board[r][c] === PLAYER) {
+        // X - draw two crossing lines
+        ctx.strokeStyle = '#e53935';
+        ctx.lineWidth = 3;
+        ctx.shadowColor = 'rgba(0,0,0,0.15)';
+        ctx.shadowBlur = 3;
+        ctx.beginPath();
+        ctx.moveTo(x - half, y - half);
+        ctx.lineTo(x + half, y + half);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x + half, y - half);
+        ctx.lineTo(x - half, y + half);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      } else {
+        // O - draw circle outline
+        ctx.strokeStyle = '#2E7D32';
+        ctx.lineWidth = 3;
+        ctx.shadowColor = 'rgba(0,0,0,0.15)';
+        ctx.shadowBlur = 3;
+        ctx.beginPath();
+        ctx.arc(x, y, half - 1, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+    }
+  }
+
+  // last move indicator
+  let lastR = -1, lastC = -1;
+  for (let r = 0; r < SIZE; r++)
+    for (let c = 0; c < SIZE; c++)
+      if (board[r][c] !== EMPTY) { lastR = r; lastC = c; }
+  if (lastR >= 0) {
+    const x = PADDING + (lastC + 0.5) * CELL, y = PADDING + (lastR + 0.5) * CELL;
+    ctx.strokeStyle = '#FFD700';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(x, y, 5, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // game over overlay
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillRect(0, 0, W, H);
+    const bx = Math.floor(W/2 - 70), by = Math.floor(H/2 + 80);
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.fillRect(bx, by, 140, 36);
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(bx, by, 140, 36);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 16px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Chơi lại', Math.floor(W/2), by + 18);
+    ctx.textBaseline = 'alphabetic';
+  }
+}
+
+// ===== INPUT =====
+canvas.addEventListener('click', e => {
+  initAudio();
+  const rect = canvas.getBoundingClientRect();
+  const mx = (e.clientX - rect.left) * (W / rect.width);
+  const my = (e.clientY - rect.top) * (H / rect.height);
+
+  // Check click on "Chơi lại" button (game over)
+  if (gameOver) {
+    const bx = Math.floor(W/2 - 70), by = Math.floor(H/2 + 80);
+    if (mx >= bx && mx <= bx + 140 && my >= by && my <= by + 36) {
+      initBoard(); draw(); return;
+    }
+    return;
+  }
+
+  if (thinking || currentPlayer !== PLAYER) return;
+  const c = Math.floor((mx - PADDING) / CELL);
+  const r = Math.floor((my - PADDING) / CELL);
+  if (r < 0 || r >= SIZE || c < 0 || c >= SIZE) return;
+  if (board[r][c] !== EMPTY) return;
+
+  const end = placeMove(r, c, PLAYER);
+  draw();
+  if (!end) {
+    currentPlayer = AI;
+    aiMove();
+  }
+});
+
+// initial draw
+draw();
+</script>
+</body>
+</html>
