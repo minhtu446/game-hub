@@ -629,7 +629,7 @@ body {
 })();
 </script>
 
-<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js" onerror="window.peerjsError=true"></script>
 <script>
 (function() {
   let statusText = 'Lượt của bạn (X)';
@@ -1141,7 +1141,7 @@ body {
   }
 
   function connectPeer(hostId) {
-    if (typeof Peer === 'undefined') { document.getElementById('caroJoinError').style.display = ''; document.getElementById('caroJoinError').textContent = 'PeerJS chưa tải xong, thử lại!'; return; }
+    if (typeof Peer === 'undefined') { document.getElementById('caroJoinError').style.display = ''; document.getElementById('caroJoinError').textContent = 'PeerJS chưa tải xong'; return; }
     document.getElementById('caroJoinError').style.display = 'none';
     try { peer = new Peer(); } catch (e) { document.getElementById('caroJoinError').style.display = ''; document.getElementById('caroJoinError').textContent = 'Lỗi: ' + e.message; return; }
     peer.on('open', function(id) {
@@ -1177,7 +1177,12 @@ body {
   }
 
   document.getElementById('caroCreateBtn').addEventListener('click', function() {
-    if (typeof Peer === 'undefined') { alert('PeerJS chưa tải xong, thử lại!'); return; }
+    if (typeof Peer === 'undefined') {
+      var msg = 'PeerJS chưa tải xong';
+      if (window.peerjsError) msg += ' (lỗi tải CDN)';
+      document.getElementById('caroCodeDisplay').textContent = msg;
+      return;
+    }
     showCaroScreen('caroCreate');
     document.getElementById('caroCodeDisplay').textContent = 'Đang kết nối...';
     var connected = false;
@@ -1193,7 +1198,7 @@ body {
       document.getElementById('caroCodeDisplay').textContent = id;
     });
     peer.on('error', function(err) {
-      document.getElementById('caroCodeDisplay').textContent = 'Lỗi: ' + err.type;
+      document.getElementById('caroCodeDisplay').textContent = 'Lỗi: ' + err.type + ' - ' + (err.message || '');
     });
     setTimeout(function() {
       if (!connected && document.getElementById('caroCodeDisplay').textContent === 'Đang kết nối...') {
