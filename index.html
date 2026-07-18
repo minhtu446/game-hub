@@ -600,8 +600,6 @@ body {
   let winner = null;
   let thinking = false;
   let audioCtx = null;
-  let gameInit = false;
-
   const EMPTY = 0, PLAYER = 1, AI = -1;
 
   // Size selection
@@ -618,7 +616,6 @@ body {
       canvas.height = H;
       document.getElementById('caroMenu').style.display = 'none';
       canvas.style.display = 'block';
-      gameInit = true;
       statusText = 'Lượt của bạn (X)';
       initGame();
       draw();
@@ -977,18 +974,19 @@ body {
     setTimeout(function() {
       if (gameOver) { thinking = false; return; }
 
-      if (SIZE <= 5) {
-        const cands = getCandidates();
-        if (cands.length === 0) { doneAI(); return; }
-        let best = null, bestScore = -Infinity;
-        for (const m of cands) {
-          board[m.r][m.c] = AI;
-          if (checkWin(m.r, m.c, AI)) { board[m.r][m.c] = EMPTY; placeMove(m.r, m.c, AI); doneAI(); return; }
-          const sc = alphaBeta(14, -Infinity, Infinity, false, 15);
-          board[m.r][m.c] = EMPTY;
-          if (sc > bestScore) { bestScore = sc; best = m; }
-        }
-        if (best) { placeMove(best.r, best.c, AI); doneAI(); return; }
+      var emptyCount = 0;
+      for (var ri = 0; ri < SIZE; ri++)
+        for (var ci = 0; ci < SIZE; ci++)
+          if (board[ri][ci] === EMPTY) emptyCount++;
+
+      if (emptyCount === SIZE * SIZE) { placeMove(Math.floor(SIZE/2), Math.floor(SIZE/2), AI); doneAI(); return; }
+      if (emptyCount === SIZE * SIZE - 1) {
+        if (board[Math.floor(SIZE/2)][Math.floor(SIZE/2)] === EMPTY) { placeMove(Math.floor(SIZE/2), Math.floor(SIZE/2), AI); doneAI(); return; }
+        for (var di = -1; di <= 1; di++)
+          for (var ei = -1; ei <= 1; ei++) {
+            var nr2 = Math.floor(SIZE/2) + di, nc2 = Math.floor(SIZE/2) + ei;
+            if (nr2 >= 0 && nr2 < SIZE && nc2 >= 0 && nc2 < SIZE && board[nr2][nc2] === EMPTY) { placeMove(nr2, nc2, AI); doneAI(); return; }
+          }
       }
 
       for (const { r, c } of getCandidates()) {
@@ -1003,31 +1001,8 @@ body {
         board[r][c] = EMPTY;
       }
 
-      for (const { r, c } of getCandidates()) {
-        if (hasDoubleThreatMove(r, c, AI)) { placeMove(r, c, AI); doneAI(); return; }
-      }
-
-      for (const { r, c } of getCandidates()) {
-        if (hasDoubleThreatMove(r, c, PLAYER)) { placeMove(r, c, AI); doneAI(); return; }
-      }
-
-      let emptyCount = 0;
-      for (let r = 0; r < SIZE; r++)
-        for (let c = 0; c < SIZE; c++)
-          if (board[r][c] === EMPTY) emptyCount++;
-
-      if (emptyCount === SIZE * SIZE) { placeMove(Math.floor(SIZE/2), Math.floor(SIZE/2), AI); doneAI(); return; }
-      if (emptyCount === SIZE * SIZE - 1) {
-        if (board[Math.floor(SIZE/2)][Math.floor(SIZE/2)] === EMPTY) { placeMove(Math.floor(SIZE/2), Math.floor(SIZE/2), AI); doneAI(); return; }
-        for (let dr = -1; dr <= 1; dr++)
-          for (let dc = -1; dc <= 1; dc++) {
-            const nr = Math.floor(SIZE/2) + dr, nc = Math.floor(SIZE/2) + dc;
-            if (nr >= 0 && nr < SIZE && nc >= 0 && nc < SIZE && board[nr][nc] === EMPTY) { placeMove(nr, nc, AI); doneAI(); return; }
-          }
-      }
-
-      const timeLimit = emptyCount > 850 ? 2000 : (emptyCount > 600 ? 3000 : (emptyCount > 300 ? 4000 : 5000));
-      const best = iterativeDeepening(timeLimit);
+      var timeLimit = emptyCount > 850 ? 2000 : (emptyCount > 600 ? 3000 : (emptyCount > 300 ? 4000 : 5000));
+      var best = iterativeDeepening(timeLimit);
 
       if (best) {
         placeMove(best.r, best.c, AI);
