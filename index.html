@@ -776,8 +776,13 @@ body {
     if (checkWin(r, c, player)) {
       gameOver = true;
       winner = player;
-      if (player === PLAYER) { statusText = 'Bạn thắng!'; playWin(); }
-      else { statusText = 'AI thắng!'; playLose(); }
+      if (isMultiplayer) {
+        statusText = player === myPlayerNum ? 'Bạn thắng!' : 'Đối thủ thắng!';
+        if (player === myPlayerNum) playWin(); else playLose();
+      } else {
+        if (player === PLAYER) { statusText = 'Bạn thắng!'; playWin(); }
+        else { statusText = 'AI thắng!'; playLose(); }
+      }
       return true;
     }
     if (isFull()) {
@@ -1368,15 +1373,18 @@ body {
       return;
     }
 
-    if (thinking || currentPlayer !== PLAYER) return;
-    if (isMultiplayer && waitingForMove) return;
+    if (isMultiplayer) {
+      if (waitingForMove || currentPlayer !== myPlayerNum) return;
+    } else {
+      if (thinking || currentPlayer !== PLAYER) return;
+    }
     const c = Math.floor((mx - PADDING) / CELL);
     const r = Math.floor((my - PADDING) / CELL);
     if (r < 0 || r >= SIZE || c < 0 || c >= SIZE) return;
     if (board[r][c] !== EMPTY) return;
 
     if (isMultiplayer) {
-      const ended = placeMove(r, c, PLAYER);
+      const ended = placeMove(r, c, myPlayerNum);
       draw();
       if (!ended) {
         conn.send({ type: 'move', r: r, c: c });
