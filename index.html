@@ -61,9 +61,17 @@ h1 {
 .desc { font-size: 13px; color: rgba(255,255,255,0.5); text-align: center; }
 .footer { color: rgba(255,255,255,0.2); font-size: 13px; }
 
-#gameContainer {
+.game-container {
   display: none;
   position: relative;
+}
+.game-container.active {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.game-container iframe {
+  border: none;
 }
 #backBtn {
   position: fixed;
@@ -81,10 +89,6 @@ h1 {
   font-family: 'Segoe UI', sans-serif;
 }
 #backBtn:hover { background: rgba(255,255,255,0.2); }
-#gameFrame {
-  border: none;
-  display: block;
-}
 </style>
 </head>
 <body>
@@ -105,25 +109,37 @@ h1 {
   <div class="footer">Chọn game để bắt đầu</div>
 </div>
 
-<div id="gameContainer">
-  <button id="backBtn" onclick="closeGame()">← Quay lại</button>
-  <iframe id="gameFrame"></iframe>
+<button id="backBtn" onclick="closeGame()" style="display:none">← Quay lại</button>
+
+<div id="flappyContainer" class="game-container" data-loaded="false">
+  <iframe id="flappyFrame" width="296" height="520"></iframe>
+</div>
+<div id="caroContainer" class="game-container" data-loaded="false">
+  <iframe id="caroFrame" width="700" height="620"></iframe>
 </div>
 
 <script>
+// Preload both games after page loads
+window.addEventListener('load', () => {
+  setTimeout(() => { document.getElementById('flappyFrame').src = 'flappy.html'; }, 100);
+  setTimeout(() => { document.getElementById('caroFrame').src = 'caro.html'; }, 500);
+});
+
 function openGame(name) {
   document.getElementById('menu').style.display = 'none';
-  const container = document.getElementById('gameContainer');
-  container.style.display = 'flex';
-  const frame = document.getElementById('gameFrame');
-  frame.src = name + '.html';
-  // Fit iframe to game size
-  if (name === 'flappy') { frame.width = 296; frame.height = 520; }
-  else { frame.width = 700; frame.height = 620; }
+  document.getElementById('backBtn').style.display = 'block';
+
+  const id = name + 'Container';
+  const other = name === 'flappy' ? 'caroContainer' : 'flappyContainer';
+
+  document.getElementById(other).classList.remove('active');
+  document.getElementById(id).classList.add('active');
 }
+
 function closeGame() {
-  document.getElementById('gameFrame').src = '';
-  document.getElementById('gameContainer').style.display = 'none';
+  document.getElementById('flappyContainer').classList.remove('active');
+  document.getElementById('caroContainer').classList.remove('active');
+  document.getElementById('backBtn').style.display = 'none';
   document.getElementById('menu').style.display = 'flex';
 }
 </script>
