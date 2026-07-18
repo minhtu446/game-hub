@@ -1180,6 +1180,7 @@ body {
     if (typeof Peer === 'undefined') { alert('PeerJS chưa tải xong, thử lại!'); return; }
     showCaroScreen('caroCreate');
     document.getElementById('caroCodeDisplay').textContent = 'Đang kết nối...';
+    var connected = false;
     try {
       peer = new Peer();
     } catch (e) {
@@ -1187,12 +1188,18 @@ body {
       return;
     }
     peer.on('open', function(id) {
+      connected = true;
       myPeerId = id;
       document.getElementById('caroCodeDisplay').textContent = id;
     });
     peer.on('error', function(err) {
       document.getElementById('caroCodeDisplay').textContent = 'Lỗi: ' + err.type;
     });
+    setTimeout(function() {
+      if (!connected && document.getElementById('caroCodeDisplay').textContent === 'Đang kết nối...') {
+        document.getElementById('caroCodeDisplay').textContent = 'Lỗi: quá thời gian chờ, thử lại!';
+      }
+    }, 15000);
     peer.on('connection', function(incoming) {
       conn = incoming;
       conn.on('open', function() {
