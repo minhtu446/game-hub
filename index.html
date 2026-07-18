@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Game Hub</title>
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js" defer></script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
@@ -130,12 +131,50 @@ body {
 
   <div id="caroContainer" class="game-container">
     <div id="caroMenu" style="text-align:center;padding:40px">
-      <h2 style="color:#FFD54F;font-size:36px;margin-bottom:30px">Chọn kích thước</h2>
-      <div id="caroSizes" style="display:flex;flex-wrap:wrap;gap:16px;justify-content:center">
-        <button class="caro-size-btn" data-size="5" data-win="3">5x5<br><span style="font-size:14px;opacity:0.7">3 ô thắng</span></button>
-        <button class="caro-size-btn" data-size="10" data-win="4">10x10<br><span style="font-size:14px;opacity:0.7">4 ô thắng</span></button>
-        <button class="caro-size-btn" data-size="20" data-win="5">20x20<br><span style="font-size:14px;opacity:0.7">5 ô thắng</span></button>
-
+      <!-- Screen 1: Mode selection -->
+      <div id="caroMode">
+        <h2 style="color:#FFD54F;font-size:36px;margin-bottom:30px">Caro</h2>
+        <div style="display:flex;flex-wrap:wrap;gap:16px;justify-content:center">
+          <button class="caro-size-btn" id="caroModeAI">Đấu với AI</button>
+          <button class="caro-size-btn" id="caroModeOnline">Đấu Online</button>
+        </div>
+      </div>
+      <!-- Screen 2: Size selection -->
+      <div id="caroSizeS" style="display:none">
+        <h2 style="color:#FFD54F;font-size:36px;margin-bottom:20px">Chọn kích thước</h2>
+        <div style="display:flex;flex-wrap:wrap;gap:16px;justify-content:center">
+          <button class="caro-size-btn" data-size="5" data-win="3">5x5<br><span style="font-size:14px;opacity:0.7">3 ô thắng</span></button>
+          <button class="caro-size-btn" data-size="10" data-win="4">10x10<br><span style="font-size:14px;opacity:0.7">4 ô thắng</span></button>
+          <button class="caro-size-btn" data-size="20" data-win="5">20x20<br><span style="font-size:14px;opacity:0.7">5 ô thắng</span></button>
+        </div>
+        <div style="margin-top:24px"><button class="caro-size-btn" id="caroBackAI" style="padding:12px 30px;font-size:16px">Quay lại</button></div>
+      </div>
+      <!-- Screen 3: Online menu -->
+      <div id="caroOnline" style="display:none">
+        <h2 style="color:#FFD54F;font-size:36px;margin-bottom:30px">Đấu Online</h2>
+        <div style="display:flex;flex-wrap:wrap;gap:16px;justify-content:center">
+          <button class="caro-size-btn" id="caroCreateBtn">Tạo trận</button>
+          <button class="caro-size-btn" id="caroJoinBtn">Vào trận</button>
+        </div>
+        <div style="margin-top:24px"><button class="caro-size-btn" id="caroBackOnline" style="padding:12px 30px;font-size:16px">Quay lại</button></div>
+      </div>
+      <!-- Screen 4: Create match -->
+      <div id="caroCreate" style="display:none">
+        <h2 style="color:#FFD54F;font-size:36px;margin-bottom:20px">Tạo trận</h2>
+        <p style="color:#fff;font-size:18px;margin-bottom:8px">Mã trận của bạn:</p>
+        <p id="caroCodeDisplay" style="color:#FFD54F;font-size:48px;font-weight:bold;letter-spacing:8px;margin-bottom:20px"></p>
+        <p style="color:rgba(255,255,255,0.6);font-size:16px" id="caroWaitMsg">Đang chờ đối thủ kết nối...</p>
+        <div style="margin-top:30px"><button class="caro-size-btn" id="caroCancelCreate" style="padding:12px 30px;font-size:16px">Hủy</button></div>
+      </div>
+      <!-- Screen 5: Join match -->
+      <div id="caroJoin" style="display:none">
+        <h2 style="color:#FFD54F;font-size:36px;margin-bottom:20px">Vào trận</h2>
+        <input id="caroCodeInput" type="text" placeholder="Nhập mã trận" style="padding:14px 20px;font-size:22px;border-radius:10px;border:2px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#fff;text-align:center;width:240px;letter-spacing:6px;text-transform:uppercase;font-weight:bold;outline:none;font-family:inherit">
+        <div style="margin-top:20px;display:flex;gap:12px;justify-content:center">
+          <button class="caro-size-btn" id="caroConnectBtn" style="padding:12px 30px;font-size:16px">Kết nối</button>
+          <button class="caro-size-btn" id="caroBackJoin" style="padding:12px 30px;font-size:16px">Quay lại</button>
+        </div>
+        <p id="caroJoinError" style="color:#e53935;font-size:14px;margin-top:12px;display:none"></p>
       </div>
     </div>
     <canvas id="caroCanvas" style="display:none"></canvas>
@@ -592,7 +631,7 @@ body {
   const canvas = document.getElementById('caroCanvas');
   const ctx = canvas.getContext('2d');
 
-  let SIZE = 30, WIN = 5, CELL = 22;
+  let SIZE = 20, WIN = 5, CELL = 28;
   let BOARD, PADDING = 24, W, H;
   let board = [];
   let currentPlayer = 1;
@@ -602,21 +641,41 @@ body {
   let audioCtx = null;
   const EMPTY = 0, PLAYER = 1, AI = -1;
 
-  // Size selection
-  document.querySelectorAll('.caro-size-btn').forEach(function(btn) {
+  let isMultiplayer = false;
+  let peer = null, conn = null, myPeerId = null;
+  let myPlayerNum = 1; // 1 = X (first), 2 = O (second)
+  let waitingForMove = false;
+
+  function showCaroScreen(id) {
+    document.querySelectorAll('#caroMenu > div').forEach(function(d) { d.style.display = 'none'; });
+    document.getElementById(id).style.display = '';
+  }
+
+  document.getElementById('caroModeAI').addEventListener('click', function() { showCaroScreen('caroSizeS'); });
+  document.getElementById('caroModeOnline').addEventListener('click', function() { showCaroScreen('caroOnline'); });
+  document.getElementById('caroBackAI').addEventListener('click', function() { showCaroScreen('caroMode'); });
+  document.getElementById('caroBackOnline').addEventListener('click', function() { showCaroScreen('caroMode'); });
+  document.getElementById('caroBackJoin').addEventListener('click', function() { showCaroScreen('caroOnline'); });
+
+  function startGame(size, win) {
+    SIZE = size; WIN = win;
+    CELL = SIZE <= 10 ? 48 : (SIZE <= 20 ? 28 : 22);
+    PADDING = 24;
+    BOARD = CELL * SIZE;
+    W = BOARD + PADDING * 2;
+    H = BOARD + PADDING * 2;
+    canvas.width = W;
+    canvas.height = H;
+    document.getElementById('caroMenu').style.display = 'none';
+    canvas.style.display = 'block';
+    initGame();
+  }
+
+  // AI size buttons
+  document.querySelectorAll('#caroSizeS .caro-size-btn[data-size]').forEach(function(btn) {
     btn.addEventListener('click', function() {
-      SIZE = parseInt(btn.getAttribute('data-size'));
-      WIN = parseInt(btn.getAttribute('data-win'));
-      CELL = SIZE <= 10 ? 48 : (SIZE <= 20 ? 28 : 22);
-      PADDING = 24;
-      BOARD = CELL * SIZE;
-      W = BOARD + PADDING * 2;
-      H = BOARD + PADDING * 2;
-      canvas.width = W;
-      canvas.height = H;
-      document.getElementById('caroMenu').style.display = 'none';
-      canvas.style.display = 'block';
-      initGame();
+      isMultiplayer = false;
+      startGame(parseInt(btn.getAttribute('data-size')), parseInt(btn.getAttribute('data-win')));
       if (Math.random() < 0.5) {
         statusText = 'AI đi trước (O)...';
         draw();
@@ -1028,6 +1087,143 @@ body {
     draw();
   }
 
+  /* ---- Multiplayer ---- */
+  function multiplayerMove(r, c, player) {
+    const ended = placeMove(r, c, player);
+    draw();
+    if (ended) {
+      if (conn) conn.send({ type: 'gameOver', winner: winner });
+    } else {
+      if (player === myPlayerNum) {
+        conn.send({ type: 'move', r: r, c: c });
+        waitingForMove = true;
+        currentPlayer = 0;
+        statusText = 'Đang chờ đối thủ...';
+        draw();
+      } else {
+        currentPlayer = myPlayerNum;
+        waitingForMove = false;
+        statusText = 'Lượt của bạn (' + (myPlayerNum === 1 ? 'X' : 'O') + ')';
+        draw();
+      }
+    }
+  }
+
+  function initMultiplayerGame() {
+    SIZE = 20; WIN = 5;
+    CELL = SIZE <= 10 ? 48 : (SIZE <= 20 ? 28 : 22);
+    PADDING = 24;
+    BOARD = CELL * SIZE;
+    W = BOARD + PADDING * 2;
+    H = BOARD + PADDING * 2;
+    canvas.width = W;
+    canvas.height = H;
+    document.getElementById('caroMenu').style.display = 'none';
+    canvas.style.display = 'block';
+    initGame();
+
+    if (myPlayerNum === 1) {
+      waitingForMove = false;
+      currentPlayer = PLAYER;
+      statusText = 'Lượt của bạn (X) - Bạn đi trước';
+      draw();
+    } else {
+      waitingForMove = true;
+      currentPlayer = 0;
+      statusText = 'Chờ đối thủ đi (X)...';
+      draw();
+    }
+  }
+
+  function connectPeer(hostId) {
+    if (typeof Peer === 'undefined') { document.getElementById('caroJoinError').style.display = ''; document.getElementById('caroJoinError').textContent = 'PeerJS chưa tải xong, thử lại!'; return; }
+    document.getElementById('caroJoinError').style.display = 'none';
+    peer = new Peer();
+    peer.on('open', function(id) {
+      myPeerId = id;
+      conn = peer.connect(hostId.toUpperCase());
+      conn.on('open', function() {
+        isMultiplayer = true;
+        conn.send({ type: 'join', myId: myPeerId });
+      });
+      conn.on('data', function(data) {
+        if (data.type === 'start') {
+          myPlayerNum = data.yourNum || 2;
+          initMultiplayerGame();
+        } else if (data.type === 'move') {
+          if (isMultiplayer && board && data.r !== undefined && data.c !== undefined) {
+            multiplayerMove(data.r, data.c, myPlayerNum === 1 ? 2 : 1);
+          }
+        } else if (data.type === 'gameOver') {
+        }
+      });
+      conn.on('close', function() {
+        if (isMultiplayer && !gameOver) {
+          statusText = 'Đối thủ đã thoát!';
+          gameOver = true;
+          draw();
+        }
+      });
+    });
+    peer.on('error', function(err) {
+      document.getElementById('caroJoinError').style.display = '';
+      document.getElementById('caroJoinError').textContent = 'Lỗi kết nối: ' + err.type;
+    });
+  }
+
+  document.getElementById('caroCreateBtn').addEventListener('click', function() {
+    if (typeof Peer === 'undefined') { alert('PeerJS chưa tải xong, thử lại!'); return; }
+    showCaroScreen('caroCreate');
+    peer = new Peer();
+    peer.on('open', function(id) {
+      myPeerId = id;
+      document.getElementById('caroCodeDisplay').textContent = id;
+    });
+    peer.on('connection', function(incoming) {
+      conn = incoming;
+      conn.on('open', function() {
+        isMultiplayer = true;
+        myPlayerNum = 1;
+        conn.send({ type: 'start', yourNum: 2 });
+        initMultiplayerGame();
+      });
+      conn.on('data', function(data) {
+        if (data.type === 'join') {
+        } else if (data.type === 'move') {
+          if (isMultiplayer && board && data.r !== undefined && data.c !== undefined) {
+            multiplayerMove(data.r, data.c, myPlayerNum === 1 ? 2 : 1);
+          }
+        }
+      });
+      conn.on('close', function() {
+        if (isMultiplayer && !gameOver) {
+          statusText = 'Đối thủ đã thoát!';
+          gameOver = true;
+          draw();
+        }
+      });
+    });
+    peer.on('error', function(err) {
+      document.getElementById('caroCodeDisplay').textContent = 'Lỗi: ' + err.type;
+    });
+  });
+
+  document.getElementById('caroCancelCreate').addEventListener('click', function() {
+    if (peer) { peer.destroy(); peer = null; }
+    isMultiplayer = false; conn = null;
+    showCaroScreen('caroOnline');
+  });
+
+  document.getElementById('caroConnectBtn').addEventListener('click', function() {
+    var code = document.getElementById('caroCodeInput').value.trim().toUpperCase();
+    if (!code) { document.getElementById('caroJoinError').style.display = ''; document.getElementById('caroJoinError').textContent = 'Nhập mã trận!'; return; }
+    connectPeer(code);
+  });
+
+  document.getElementById('caroCodeInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') document.getElementById('caroConnectBtn').click();
+  });
+
   function draw() {
     ctx.clearRect(0, 0, W, H);
 
@@ -1149,14 +1345,23 @@ body {
     if (gameOver) {
       const bx = Math.floor(W/2 - 70), by = Math.floor(H/2 + 80);
       if (mx >= bx && mx <= bx + 140 && my >= by && my <= by + 36) {
-        initGame();
-        if (Math.random() < 0.5) {
-          statusText = 'AI đi trước (O)...';
-          draw();
-          aiMove();
+        if (isMultiplayer) {
+          if (conn) conn.close();
+          if (peer) peer.destroy();
+          peer = null; conn = null; isMultiplayer = false;
+          document.getElementById('caroMenu').style.display = '';
+          document.getElementById('caroCanvas').style.display = 'none';
+          showCaroScreen('caroOnline');
         } else {
-          statusText = 'Lượt của bạn (X)';
-          draw();
+          initGame();
+          if (Math.random() < 0.5) {
+            statusText = 'AI đi trước (O)...';
+            draw();
+            aiMove();
+          } else {
+            statusText = 'Lượt của bạn (X)';
+            draw();
+          }
         }
         return;
       }
@@ -1164,16 +1369,31 @@ body {
     }
 
     if (thinking || currentPlayer !== PLAYER) return;
+    if (isMultiplayer && waitingForMove) return;
     const c = Math.floor((mx - PADDING) / CELL);
     const r = Math.floor((my - PADDING) / CELL);
     if (r < 0 || r >= SIZE || c < 0 || c >= SIZE) return;
     if (board[r][c] !== EMPTY) return;
 
-    const end = placeMove(r, c, PLAYER);
-    draw();
-    if (!end) {
-      currentPlayer = AI;
-      aiMove();
+    if (isMultiplayer) {
+      const ended = placeMove(r, c, PLAYER);
+      draw();
+      if (!ended) {
+        conn.send({ type: 'move', r: r, c: c });
+        waitingForMove = true;
+        currentPlayer = 0;
+        statusText = 'Đang chờ đối thủ...';
+        draw();
+      } else {
+        if (conn) conn.send({ type: 'gameOver', winner: winner });
+      }
+    } else {
+      const end = placeMove(r, c, PLAYER);
+      draw();
+      if (!end) {
+        currentPlayer = AI;
+        aiMove();
+      }
     }
   });
 
