@@ -1142,7 +1142,7 @@ body {
 
   function connectPeer(hostId) {
     if (typeof Peer === 'undefined') { document.getElementById('caroJoinError').style.display = ''; document.getElementById('caroJoinError').textContent = 'PeerJS chưa tải xong'; return; }
-    document.getElementById('caroJoinError').style.display = 'none';
+    document.getElementById('caroJoinError').style.display = 'none'; document.getElementById('caroJoinError').textContent = 'Đang kết nối...'; document.getElementById('caroJoinError').style.display = '';
     try { peer = new Peer(); } catch (e) { document.getElementById('caroJoinError').style.display = ''; document.getElementById('caroJoinError').textContent = 'Lỗi: ' + e.message; return; }
     peer.on('open', function(id) {
       myPeerId = id;
@@ -1177,14 +1177,15 @@ body {
   }
 
   document.getElementById('caroCreateBtn').addEventListener('click', function() {
+    showCaroScreen('caroCreate');
+    document.getElementById('caroCodeDisplay').textContent = 'Đang kết nối...';
     if (typeof Peer === 'undefined') {
       var msg = 'PeerJS chưa tải xong';
       if (window.peerjsError) msg += ' (lỗi tải CDN)';
+      else msg += ' - thử F5';
       document.getElementById('caroCodeDisplay').textContent = msg;
       return;
     }
-    showCaroScreen('caroCreate');
-    document.getElementById('caroCodeDisplay').textContent = 'Đang kết nối...';
     var connected = false;
     try {
       peer = new Peer();
