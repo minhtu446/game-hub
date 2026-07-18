@@ -731,13 +731,13 @@ body {
 
   function analyzeDir(r, c, dr, dc, player) {
     let count = 0, open = 0;
-    for (let d = 1; d <= 4; d++) {
+    for (let d = 1; d < WIN; d++) {
       const nr = r + dr * d, nc = c + dc * d;
       if (nr < 0 || nr >= SIZE || nc < 0 || nc >= SIZE) break;
       if (board[nr][nc] === player) count++;
       else { if (board[nr][nc] === EMPTY) open++; break; }
     }
-    for (let d = 1; d <= 4; d++) {
+    for (let d = 1; d < WIN; d++) {
       const nr = r - dr * d, nc = c - dc * d;
       if (nr < 0 || nr >= SIZE || nc < 0 || nc >= SIZE) break;
       if (board[nr][nc] === player) count++;
@@ -876,6 +876,13 @@ body {
     return list;
   }
 
+  function orderMoves(cands) {
+    for (const m of cands) {
+      m.score = cellThreat(m.r, m.c, AI) + cellThreat(m.r, m.c, PLAYER);
+    }
+    cands.sort(function(a, b) { return b.score - a.score; });
+  }
+
   function alphaBeta(depth, alpha, beta, isMax, maxDepth) {
     const player = isMax ? AI : PLAYER;
 
@@ -886,14 +893,10 @@ body {
     const cands = getCandsFast();
     if (cands.length === 0) return 0;
 
-    cands.sort(function(a, b) {
-      const ta = cellThreat(a.r, a.c, AI) + cellThreat(a.r, a.c, PLAYER);
-      const tb = cellThreat(b.r, b.c, AI) + cellThreat(b.r, b.c, PLAYER);
-      return tb - ta;
-    });
+    orderMoves(cands);
 
     const width = Math.min(
-      depth >= maxDepth - 1 ? 18 : (depth >= maxDepth - 2 ? 14 : 10),
+      SIZE <= 10 ? cands.length : (depth >= maxDepth - 1 ? 18 : (depth >= maxDepth - 2 ? 14 : 10)),
       cands.length
     );
 
@@ -903,9 +906,6 @@ body {
         const { r, c } = cands[i];
         board[r][c] = AI;
         if (checkWin(r, c, AI)) { board[r][c] = EMPTY; return 100000000 - (maxDepth - depth) * 10; }
-        board[r][c] = EMPTY;
-
-        board[r][c] = AI;
         const v = alphaBeta(depth - 1, alpha, beta, false, maxDepth);
         board[r][c] = EMPTY;
         if (v > best) best = v;
@@ -919,9 +919,6 @@ body {
         const { r, c } = cands[i];
         board[r][c] = PLAYER;
         if (checkWin(r, c, PLAYER)) { board[r][c] = EMPTY; return -100000000 + (maxDepth - depth) * 10; }
-        board[r][c] = EMPTY;
-
-        board[r][c] = PLAYER;
         const v = alphaBeta(depth - 1, alpha, beta, true, maxDepth);
         board[r][c] = EMPTY;
         if (v < best) best = v;
@@ -939,12 +936,13 @@ body {
 
     let bestMove = candidates[0];
     let bestScore = -Infinity;
+    const maxDepthLimit = SIZE <= 5 ? 20 : (SIZE <= 10 ? 14 : 10);
 
-    for (let depth = 3; depth <= 12; depth++) {
+    for (let depth = 3; depth <= maxDepthLimit; depth++) {
       let currentBest = null;
       let currentScore = -Infinity;
 
-      const width = Math.min(depth <= 4 ? 18 : (depth <= 6 ? 14 : 10), candidates.length);
+      const width = Math.min(SIZE <= 10 ? candidates.length : (depth <= 4 ? 18 : (depth <= 6 ? 14 : 10)), candidates.length);
 
       for (let i = 0; i < width; i++) {
         const { r, c } = candidates[i];
@@ -979,6 +977,20 @@ body {
     setTimeout(function() {
       if (gameOver) { thinking = false; return; }
 
+      if (SIZE <= 5) {
+        const cands = getCandidates();
+        if (cands.length === 0) { doneAI(); return; }
+        let best = null, bestScore = -Infinity;
+        for (const m of cands) {
+          board[m.r][m.c] = AI;
+          if (checkWin(m.r, m.c, AI)) { board[m.r][m.c] = EMPTY; placeMove(m.r, m.c, AI); doneAI(); return; }
+          const sc = alphaBeta(14, -Infinity, Infinity, false, 15);
+          board[m.r][m.c] = EMPTY;
+          if (sc > bestScore) { bestScore = sc; best = m; }
+        }
+        if (best) { placeMove(best.r, best.c, AI); doneAI(); return; }
+      }
+
       for (const { r, c } of getCandidates()) {
         board[r][c] = AI;
         if (checkWin(r, c, AI)) { board[r][c] = EMPTY; placeMove(r, c, AI); doneAI(); return; }
@@ -1006,15 +1018,15 @@ body {
 
       if (emptyCount === SIZE * SIZE) { placeMove(Math.floor(SIZE/2), Math.floor(SIZE/2), AI); doneAI(); return; }
       if (emptyCount === SIZE * SIZE - 1) {
-        const mid = Math.floor(SIZE/2);
+        if (board[Math.floor(SIZE/2)][Math.floor(SIZE/2)] === EMPTY) { placeMove(Math.floor(SIZE/2), Math.floor(SIZE/2), AI); doneAI(); return; }
         for (let dr = -1; dr <= 1; dr++)
           for (let dc = -1; dc <= 1; dc++) {
-            const nr = mid + dr, nc = mid + dc;
-            if (board[nr][nc] === EMPTY) { placeMove(nr, nc, AI); doneAI(); return; }
+            const nr = Math.floor(SIZE/2) + dr, nc = Math.floor(SIZE/2) + dc;
+            if (nr >= 0 && nr < SIZE && nc >= 0 && nc < SIZE && board[nr][nc] === EMPTY) { placeMove(nr, nc, AI); doneAI(); return; }
           }
       }
 
-      const timeLimit = emptyCount > 850 ? 1500 : (emptyCount > 600 ? 2000 : 2500);
+      const timeLimit = emptyCount > 850 ? 2000 : (emptyCount > 600 ? 3000 : (emptyCount > 300 ? 4000 : 5000));
       const best = iterativeDeepening(timeLimit);
 
       if (best) {
