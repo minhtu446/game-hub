@@ -1143,7 +1143,7 @@ body {
   function connectPeer(hostId) {
     if (typeof Peer === 'undefined') { document.getElementById('caroJoinError').style.display = ''; document.getElementById('caroJoinError').textContent = 'PeerJS chưa tải xong, thử lại!'; return; }
     document.getElementById('caroJoinError').style.display = 'none';
-    peer = new Peer();
+    try { peer = new Peer(); } catch (e) { document.getElementById('caroJoinError').style.display = ''; document.getElementById('caroJoinError').textContent = 'Lỗi: ' + e.message; return; }
     peer.on('open', function(id) {
       myPeerId = id;
       conn = peer.connect(hostId.toUpperCase());
@@ -1179,10 +1179,19 @@ body {
   document.getElementById('caroCreateBtn').addEventListener('click', function() {
     if (typeof Peer === 'undefined') { alert('PeerJS chưa tải xong, thử lại!'); return; }
     showCaroScreen('caroCreate');
-    peer = new Peer();
+    document.getElementById('caroCodeDisplay').textContent = 'Đang kết nối...';
+    try {
+      peer = new Peer();
+    } catch (e) {
+      document.getElementById('caroCodeDisplay').textContent = 'Lỗi: ' + e.message;
+      return;
+    }
     peer.on('open', function(id) {
       myPeerId = id;
       document.getElementById('caroCodeDisplay').textContent = id;
+    });
+    peer.on('error', function(err) {
+      document.getElementById('caroCodeDisplay').textContent = 'Lỗi: ' + err.type;
     });
     peer.on('connection', function(incoming) {
       conn = incoming;
