@@ -193,6 +193,7 @@ body {
       flappyC.style.display = 'block';
     } else {
       caroC.style.display = 'block';
+      document.getElementById('caroMenu').style.display = '';
       var showAI = name === 'caroAI';
       document.getElementById('caroSizeS').style.display = showAI ? '' : 'none';
       document.getElementById('caroOnline').style.display = showAI ? 'none' : '';
@@ -209,6 +210,7 @@ body {
     currentGame = null;
     window.postMessage({ type: 'closeGame' }, '*');
     document.getElementById('caroSizeS').style.display = '';
+    document.getElementById('caroMenu').style.display = '';
     document.getElementById('caroOnline').style.display = 'none';
     document.getElementById('caroCreate').style.display = 'none';
     document.getElementById('caroJoin').style.display = 'none';
