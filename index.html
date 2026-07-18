@@ -8,31 +8,34 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
   display: flex;
-  flex-direction: column;
   justify-content: center;
   align-items: center;
   min-height: 100vh;
   background: #1a1a2e;
   font-family: 'Segoe UI', sans-serif;
   overflow: hidden;
-  padding: 20px;
+}
+#menu {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 50px;
 }
 h1 {
   color: #fff;
   font-size: 42px;
-  margin-bottom: 60px;
   text-shadow: 0 4px 20px rgba(0,0,0,0.3);
   letter-spacing: 2px;
 }
-.menu {
+.menu-items {
   display: flex;
   gap: 40px;
   flex-wrap: wrap;
   justify-content: center;
 }
 .card {
-  width: 280px;
-  height: 340px;
+  width: 260px;
+  height: 300px;
   background: rgba(255,255,255,0.05);
   border-radius: 16px;
   cursor: pointer;
@@ -41,7 +44,7 @@ h1 {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 20px;
+  gap: 16px;
   border: 2px solid rgba(255,255,255,0.1);
   text-decoration: none;
   color: #fff;
@@ -53,43 +56,76 @@ h1 {
   border-color: rgba(255,255,255,0.3);
   box-shadow: 0 20px 60px rgba(0,0,0,0.3);
 }
-.icon {
-  font-size: 80px;
-  line-height: 1;
+.icon { font-size: 72px; }
+.label { font-size: 22px; font-weight: bold; }
+.desc { font-size: 13px; color: rgba(255,255,255,0.5); text-align: center; }
+.footer { color: rgba(255,255,255,0.2); font-size: 13px; }
+
+#gameContainer {
+  display: none;
+  position: relative;
 }
-.label {
-  font-size: 24px;
-  font-weight: bold;
-  letter-spacing: 1px;
-}
-.desc {
+#backBtn {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  background: rgba(0,0,0,0.4);
+  border: 2px solid rgba(255,255,255,0.2);
+  border-radius: 8px;
+  padding: 8px 18px;
+  color: #fff;
   font-size: 14px;
-  color: rgba(255,255,255,0.5);
-  text-align: center;
+  cursor: pointer;
+  z-index: 100;
+  transition: background 0.2s;
+  font-family: 'Segoe UI', sans-serif;
 }
-.flappy .icon { color: #FFD54F; }
-.caro .icon { color: #4FC3F7; }
-.footer {
-  margin-top: 60px;
-  color: rgba(255,255,255,0.2);
-  font-size: 13px;
+#backBtn:hover { background: rgba(255,255,255,0.2); }
+#gameFrame {
+  border: none;
+  display: block;
 }
 </style>
 </head>
 <body>
-<h1>🎮 Game Hub</h1>
-<div class="menu">
-  <a class="card flappy" href="flappy.html">
-    <div class="icon">🐤</div>
-    <div class="label">Flappy Bird</div>
-    <div class="desc">Click để bay qua ống, ghi điểm cao nhất!</div>
-  </a>
-  <a class="card caro" href="caro.html">
-    <div class="icon">⭕</div>
-    <div class="label">Caro AI</div>
-    <div class="desc">Đấu trí với AI bất bại trên bàn 30x30!</div>
-  </a>
+<div id="menu">
+  <h1>🎮 Game Hub</h1>
+  <div class="menu-items">
+    <div class="card" onclick="openGame('flappy')">
+      <div class="icon">🐤</div>
+      <div class="label">Flappy Bird</div>
+      <div class="desc">Click để bay qua ống, ghi điểm cao nhất!</div>
+    </div>
+    <div class="card" onclick="openGame('caro')">
+      <div class="icon">⭕</div>
+      <div class="label">Caro AI</div>
+      <div class="desc">Đấu trí với AI bất bại trên bàn 30x30!</div>
+    </div>
+  </div>
+  <div class="footer">Chọn game để bắt đầu</div>
 </div>
-<div class="footer">Chọn game để bắt đầu</div>
+
+<div id="gameContainer">
+  <button id="backBtn" onclick="closeGame()">← Quay lại</button>
+  <iframe id="gameFrame"></iframe>
+</div>
+
+<script>
+function openGame(name) {
+  document.getElementById('menu').style.display = 'none';
+  const container = document.getElementById('gameContainer');
+  container.style.display = 'flex';
+  const frame = document.getElementById('gameFrame');
+  frame.src = name + '.html';
+  // Fit iframe to game size
+  if (name === 'flappy') { frame.width = 296; frame.height = 520; }
+  else { frame.width = 700; frame.height = 620; }
+}
+function closeGame() {
+  document.getElementById('gameFrame').src = '';
+  document.getElementById('gameContainer').style.display = 'none';
+  document.getElementById('menu').style.display = 'flex';
+}
+</script>
 </body>
 </html>
