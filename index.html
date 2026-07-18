@@ -115,13 +115,13 @@ body {
 </div>
 
 <div class="footer">
-  <span>Ph&iacute;m tắt: F Flappy &middot; C Caro &middot; ESC Quay lại &middot; M Volume</span>
+  <span>Ph&iacute;m tắt: F Flappy &middot; C Caro &middot; ESC Quay lại</span>
 </div>
 
 <script>
 (function() {
   let currentGame = null;
-  let hubSoundEnabled = true;
+  
 
   const menu = document.getElementById('menu');
   const flappyC = document.getElementById('flappyContainer');
@@ -154,11 +154,7 @@ body {
       if (e.key === 'c' || e.key === 'C') { openGame('caro'); e.preventDefault(); return; }
     }
     if (e.key === 'Escape') { closeGame(); e.preventDefault(); return; }
-    if (e.key === 'm' || e.key === 'M') {
-      hubSoundEnabled = !hubSoundEnabled;
-      window.postMessage({ type: 'toggleSound', enabled: hubSoundEnabled }, '*');
-      e.preventDefault();
-    }
+
   });
 })();
 </script>
