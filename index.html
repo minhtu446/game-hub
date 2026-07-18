@@ -92,27 +92,7 @@ h1 {
   font-family: 'Segoe UI', sans-serif;
 }
 #backBtn:hover { background: rgba(255,255,255,0.2); }
-#volBtn {
-  position: fixed;
-  top: 16px;
-  right: 16px;
-  background: rgba(0,0,0,0.4);
-  border: 2px solid rgba(255,255,255,0.2);
-  border-radius: 8px;
-  width: 42px;
-  height: 42px;
-  color: #fff;
-  font-size: 20px;
-  cursor: pointer;
-  z-index: 100;
-  transition: background 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: 'Segoe UI', sans-serif;
-  display: none;
-}
-#volBtn:hover { background: rgba(255,255,255,0.2); }
+
 </style>
 </head>
 <body>
@@ -121,20 +101,19 @@ h1 {
   <div class="menu-items">
     <div class="card" onclick="openGame('flappy')">
       <div class="icon">🐤</div>
-      <div class="label">Flappy Bird</div>
+      <div class="label">Flappy Bird [F]</div>
       <div class="desc">Click để bay qua ống, ghi điểm cao nhất!</div>
     </div>
     <div class="card" onclick="openGame('caro')">
       <div class="icon">⭕</div>
-      <div class="label">Caro AI</div>
+      <div class="label">Caro AI [C]</div>
       <div class="desc">Đấu trí với AI bất bại trên bàn 30x30!</div>
     </div>
   </div>
-  <div class="footer">Chọn game để bắt đầu — Phím: <b>F</b> Flappy · <b>C</b> Caro · <b>M</b> Volume</div>
+  <div class="footer">Phím tắt: <b>F</b> Flappy · <b>C</b> Caro · <b>ESC</b> Quay lại</div>
 </div>
 
-<button id="backBtn" onclick="closeGame()" style="display:none">← Quay lại</button>
-<button id="volBtn" onclick="toggleVolume()" style="display:none">🔊</button>
+<button id="backBtn" onclick="closeGame()" style="display:none">← Quay lại [ESC]</button>
 
 <div id="flappyContainer" class="game-container" data-loaded="false">
   <iframe id="flappyFrame" width="296" height="520"></iframe>
@@ -144,8 +123,6 @@ h1 {
 </div>
 
 <script>
-let soundEnabled = true;
-
 // Preload both games after page loads
 window.addEventListener('load', () => {
   const v = Date.now();
@@ -156,7 +133,7 @@ window.addEventListener('load', () => {
 function openGame(name) {
   document.getElementById('menu').style.display = 'none';
   document.getElementById('backBtn').style.display = 'block';
-  document.getElementById('volBtn').style.display = 'flex';
+
 
   const id = name + 'Container';
   const other = name === 'flappy' ? 'caroContainer' : 'flappyContainer';
@@ -169,29 +146,18 @@ function closeGame() {
   document.getElementById('flappyContainer').classList.remove('active');
   document.getElementById('caroContainer').classList.remove('active');
   document.getElementById('backBtn').style.display = 'none';
-  document.getElementById('volBtn').style.display = 'none';
-  document.getElementById('menu').style.display = 'flex';
-}
 
-function toggleVolume() {
-  soundEnabled = !soundEnabled;
-  document.getElementById('volBtn').textContent = soundEnabled ? '🔊' : '🔇';
-  try {
-    const active = document.querySelector('.game-container.active iframe');
-    if (active) active.contentWindow.postMessage({ type: 'toggleSound', enabled: soundEnabled }, '*');
-  } catch(e) {}
+  document.getElementById('menu').style.display = 'flex';
 }
 
 document.addEventListener('keydown', e => {
   const menu = document.getElementById('menu');
   if (menu.style.display !== 'none') {
-    if (e.key === 'f' || e.key === 'F') { e.preventDefault(); openGame('flappy'); return; }
-    if (e.key === 'c' || e.key === 'C') { e.preventDefault(); openGame('caro'); return; }
+    if (e.key === 'f' || e.key === 'F') { e.preventDefault(); openGame('flappy'); }
+    if (e.key === 'c' || e.key === 'C') { e.preventDefault(); openGame('caro'); }
+    return;
   }
-  if (e.key === 'm' || e.key === 'M') {
-    const active = document.querySelector('.game-container.active');
-    if (active) { e.preventDefault(); toggleVolume(); }
-  }
+  if (e.key === 'Escape') { e.preventDefault(); closeGame(); }
 });
 </script>
 </body>
