@@ -3,9 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
 <title>Game Hub</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -17,148 +14,1105 @@ body {
   background: #1a1a2e;
   font-family: 'Segoe UI', sans-serif;
   overflow: hidden;
-}
-#menu {
-  display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 50px;
 }
-h1 {
+
+#menu { text-align: center; }
+#menu h1 {
+  color: #FFD54F;
+  font-size: 48px;
+  margin-bottom: 40px;
+  text-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
+.menu-btn {
+  display: block;
+  width: 320px;
+  padding: 18px 0;
+  margin: 14px auto;
+  font-size: 22px;
+  font-weight: bold;
   color: #fff;
-  font-size: 42px;
-  text-shadow: 0 4px 20px rgba(0,0,0,0.3);
-  letter-spacing: 2px;
-}
-.menu-items {
-  display: flex;
-  gap: 40px;
-  flex-wrap: wrap;
-  justify-content: center;
-}
-.card {
-  width: 260px;
-  height: 300px;
-  background: rgba(255,255,255,0.05);
-  border-radius: 16px;
+  background: rgba(255,255,255,0.08);
+  border: 2px solid rgba(255,255,255,0.15);
+  border-radius: 12px;
   cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  border: 2px solid rgba(255,255,255,0.1);
-  text-decoration: none;
-  color: #fff;
-  padding: 30px;
+  transition: all 0.2s;
+  font-family: inherit;
 }
-.card:hover {
-  transform: translateY(-8px);
-  background: rgba(255,255,255,0.1);
+.menu-btn:hover {
+  background: rgba(255,255,255,0.18);
+  transform: scale(1.03);
   border-color: rgba(255,255,255,0.3);
-  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
 }
-.icon { font-size: 72px; }
-.label { font-size: 22px; font-weight: bold; }
-.desc { font-size: 13px; color: rgba(255,255,255,0.5); text-align: center; }
-.footer { color: rgba(255,255,255,0.2); font-size: 13px; }
+.menu-btn:focus { outline: 2px solid #FFD54F; }
+.menu-btn .shortcut {
+  display: inline-block;
+  background: rgba(255,255,255,0.15);
+  padding: 2px 10px;
+  border-radius: 4px;
+  font-size: 13px;
+  margin-left: 10px;
+  vertical-align: middle;
+}
 
-.game-container {
-  display: none;
-  position: relative;
-}
-.game-container.active {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.game-container iframe {
-  border: none;
-}
-#backBtn {
-  position: fixed;
-  top: 16px;
-  left: 16px;
-  background: rgba(0,0,0,0.4);
-  border: 2px solid rgba(255,255,255,0.2);
-  border-radius: 8px;
-  padding: 8px 18px;
-  color: #fff;
-  font-size: 14px;
+.game-container { display: none; }
+.game-container.visible { display: block; }
+
+#flappyCanvas {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  border: 4px solid #5c3a1e;
+  box-shadow: 0 0 0 2px #3a2510, 0 8px 32px rgba(0,0,0,0.5);
   cursor: pointer;
-  z-index: 100;
-  transition: background 0.2s;
-  font-family: 'Segoe UI', sans-serif;
+  max-width: 90vw;
+  max-height: 85vh;
+  width: auto;
+  height: auto;
 }
-#backBtn:hover { background: rgba(255,255,255,0.2); }
 
+#caroCanvas {
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 0 40px rgba(0,0,0,0.5);
+  max-width: 90vw;
+  max-height: 85vh;
+  width: auto;
+  height: auto;
+}
+
+.footer {
+  position: fixed;
+  bottom: 16px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  color: rgba(255,255,255,0.4);
+  font-size: 13px;
+  pointer-events: none;
+  z-index: 100;
+}
+.footer span { margin: 0 4px; }
 </style>
 </head>
 <body>
+
 <div id="menu">
-  <h1>🎮 Game Hub</h1>
-  <div class="menu-items">
-    <div class="card" onclick="openGame('flappy')">
-      <div class="icon">🐤</div>
-      <div class="label">Flappy Bird [F]</div>
-      <div class="desc">Click để bay qua ống, ghi điểm cao nhất!</div>
-    </div>
-    <div class="card" onclick="openGame('caro')">
-      <div class="icon">⭕</div>
-      <div class="label">Caro AI [C]</div>
-      <div class="desc">Đấu trí với AI bất bại trên bàn 30x30!</div>
-    </div>
-  </div>
-  <div class="footer">Phím tắt: <b>F</b> Flappy · <b>C</b> Caro · <b>ESC</b> Quay lại</div>
+  <h1>Game Hub</h1>
+  <button class="menu-btn" data-game="flappy">
+    Flappy Bird <span class="shortcut">F</span>
+  </button>
+  <button class="menu-btn" data-game="caro">
+    Caro AI <span class="shortcut">C</span>
+  </button>
 </div>
 
-<button id="backBtn" onclick="closeGame()" style="display:none">← Quay lại [ESC]</button>
-
-<div id="flappyContainer" class="game-container" data-loaded="false">
-  <iframe id="flappyFrame" width="296" height="520"></iframe>
+<div id="flappyContainer" class="game-container">
+  <canvas id="flappyCanvas"></canvas>
 </div>
-<div id="caroContainer" class="game-container" data-loaded="false">
-  <iframe id="caroFrame" width="700" height="620"></iframe>
+
+<div id="caroContainer" class="game-container">
+  <canvas id="caroCanvas"></canvas>
+</div>
+
+<div class="footer">
+  <span>Ph&iacute;m tắt: F Flappy &middot; C Caro &middot; ESC Quay lại &middot; M Volume</span>
 </div>
 
 <script>
-// Preload both games after page loads
-window.addEventListener('load', () => {
-  const v = Date.now();
-  setTimeout(() => { document.getElementById('flappyFrame').src = 'flappy.html?v=' + v; }, 100);
-  setTimeout(() => { document.getElementById('caroFrame').src = 'caro.html?v=' + v; }, 500);
-});
+(function() {
+  let currentGame = null;
+  let hubSoundEnabled = true;
 
-function openGame(name) {
-  document.getElementById('menu').style.display = 'none';
-  document.getElementById('backBtn').style.display = 'block';
-
-
-  const id = name + 'Container';
-  const other = name === 'flappy' ? 'caroContainer' : 'flappyContainer';
-
-  document.getElementById(other).classList.remove('active');
-  document.getElementById(id).classList.add('active');
-}
-
-function closeGame() {
-  document.getElementById('flappyContainer').classList.remove('active');
-  document.getElementById('caroContainer').classList.remove('active');
-  document.getElementById('backBtn').style.display = 'none';
-
-  document.getElementById('menu').style.display = 'flex';
-}
-
-document.addEventListener('keydown', e => {
   const menu = document.getElementById('menu');
-  if (menu.style.display !== 'none') {
-    if (e.key === 'f' || e.key === 'F') { e.preventDefault(); openGame('flappy'); }
-    if (e.key === 'c' || e.key === 'C') { e.preventDefault(); openGame('caro'); }
-    return;
+  const flappyC = document.getElementById('flappyContainer');
+  const caroC = document.getElementById('caroContainer');
+
+  function openGame(name) {
+    menu.style.display = 'none';
+    flappyC.style.display = 'none';
+    caroC.style.display = 'none';
+    if (name === 'flappy') flappyC.style.display = 'block';
+    else caroC.style.display = 'block';
+    currentGame = name;
   }
-  if (e.key === 'Escape') { e.preventDefault(); closeGame(); }
-});
+
+  function closeGame() {
+    menu.style.display = 'block';
+    flappyC.style.display = 'none';
+    caroC.style.display = 'none';
+    currentGame = null;
+    window.postMessage({ type: 'closeGame' }, '*');
+  }
+
+  document.querySelectorAll('.menu-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() { openGame(btn.getAttribute('data-game')); });
+  });
+
+  window.addEventListener('keydown', function(e) {
+    if (currentGame === null) {
+      if (e.key === 'f' || e.key === 'F') { openGame('flappy'); e.preventDefault(); return; }
+      if (e.key === 'c' || e.key === 'C') { openGame('caro'); e.preventDefault(); return; }
+    }
+    if (e.key === 'Escape') { closeGame(); e.preventDefault(); return; }
+    if (e.key === 'm' || e.key === 'M') {
+      hubSoundEnabled = !hubSoundEnabled;
+      window.postMessage({ type: 'toggleSound', enabled: hubSoundEnabled }, '*');
+      e.preventDefault();
+    }
+  });
+})();
 </script>
+
+<script>
+(function() {
+  const canvas = document.getElementById('flappyCanvas');
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+
+  const W = 288, H = 512;
+  canvas.width = W;
+  canvas.height = H;
+
+  const BIRD_X = 64;
+  const PIPE_W = 52;
+  let GRAVITY, FLAP, PIPE_GAP, PIPE_SPEED;
+
+  const DIFFICULTIES = {
+    easy:   { gravity: 0.35, flap: -6.5, pipeGap: 155, pipeSpeed: 1.6, label: 'EASY' },
+    medium: { gravity: 0.45, flap: -7.5, pipeGap: 130, pipeSpeed: 2.2, label: 'MEDIUM' },
+    hard:   { gravity: 0.55, flap: -8.5, pipeGap: 105, pipeSpeed: 2.8, label: 'HARD' },
+  };
+  let difficulty = 'medium';
+
+  function applyDifficulty(d) {
+    difficulty = d;
+    const cfg = DIFFICULTIES[d];
+    GRAVITY = cfg.gravity;
+    FLAP = cfg.flap;
+    PIPE_GAP = cfg.pipeGap;
+    PIPE_SPEED = cfg.pipeSpeed;
+  }
+  applyDifficulty('medium');
+
+  let bird, pipes, score, bestScore, gameOver, started;
+  let soundEnabled = true;
+  let audioCtx = null;
+
+  const assets = {
+    bg: null, base: null, pipe: null,
+    bird0: null, bird1: null, bird2: null,
+    gameover: null, message: null,
+    nums: [],
+  };
+  const audioFiles = {};
+
+  function loadImage(src) {
+    return new Promise(function(resolve) {
+      const img = new Image();
+      img.onload = function() { resolve(img); };
+      img.onerror = function() { console.warn('Failed to load:', src); resolve(null); };
+      img.src = src;
+    });
+  }
+
+  async function loadAssets() {
+    const base = 'assets/';
+    const [bg, baseImg, pipe, b0, b1, b2, go, msg] = await Promise.all([
+      loadImage(base + 'background-day.png'),
+      loadImage(base + 'base.png'),
+      loadImage(base + 'pipe-green.png'),
+      loadImage(base + 'yellowbird-downflap.png'),
+      loadImage(base + 'yellowbird-midflap.png'),
+      loadImage(base + 'yellowbird-upflap.png'),
+      loadImage(base + 'gameover.png'),
+      loadImage(base + 'message.png'),
+    ]);
+    assets.bg = bg;
+    assets.base = baseImg;
+    assets.pipe = pipe;
+    assets.bird0 = b0;
+    assets.bird1 = b1;
+    assets.bird2 = b2;
+    assets.gameover = go;
+    assets.message = msg;
+
+    for (let i = 0; i <= 9; i++) {
+      assets.nums[i] = await loadImage(base + i + '.png');
+    }
+  }
+
+  const sfx = {};
+  function initAudio() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    preloadSFX();
+  }
+  function preloadSFX() {
+    const names = ['wing', 'point', 'hit', 'die', 'swoosh'];
+    for (const name of names) {
+      if (!sfx[name]) {
+        const a = new Audio('assets/' + name + '.wav');
+        a.volume = 0.5;
+        sfx[name] = a;
+      }
+    }
+  }
+  function playSFX(name) {
+    if (!soundEnabled) return;
+    try {
+      const a = sfx[name];
+      if (a) {
+        a.currentTime = 0;
+        a.play().catch(function() {});
+      }
+    } catch(e) {}
+  }
+
+  let bgmNodes = [];
+  function stopBGM() {
+    for (const n of bgmNodes) { try { n.stop(); } catch(e) {} }
+    bgmNodes = [];
+  }
+  const BGM_NOTES = [
+    [262,0.18],[330,0.18],[392,0.18],[523,0.28],
+    [392,0.12],[349,0.12],[330,0.18],[262,0.28],
+    [294,0.18],[349,0.18],[440,0.18],[587,0.28],
+    [440,0.12],[392,0.12],[349,0.18],[294,0.28],
+    [262,0.18],[330,0.18],[392,0.18],[523,0.28],
+    [392,0.12],[349,0.12],[330,0.18],[262,0.28],
+    [330,0.12],[392,0.12],[523,0.18],[659,0.18],
+    [523,0.12],[392,0.12],[330,0.18],[262,0.35],
+  ];
+  function playBGM() {
+    if (!soundEnabled || !audioCtx) return;
+    stopBGM();
+    let t = audioCtx.currentTime + 0.1;
+    for (const [f,d] of BGM_NOTES) {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.type = 'square';
+      o.frequency.setValueAtTime(f, t);
+      g.gain.setValueAtTime(0.035, t);
+      g.gain.setValueAtTime(0.035, t+d-0.04);
+      g.gain.exponentialRampToValueAtTime(0.001, t+d);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(t); o.stop(t+d);
+      bgmNodes.push(o);
+      t += d;
+    }
+  }
+
+  function toggleSound() {
+    soundEnabled = !soundEnabled;
+    if (soundEnabled && started && !gameOver) { initAudio(); playBGM(); }
+    else if (!soundEnabled) stopBGM();
+  }
+
+  function reset() {
+    bird = { y: H/2, vy: 0, frame: 0, flapTime: 0 };
+    pipes = [];
+    score = 0; gameOver = false; started = false;
+  }
+  reset();
+  bestScore = parseInt(localStorage.getItem('flappyBest') || '0');
+
+  function addPipe() {
+    const minY = 60, maxY = H - PIPE_GAP - 60;
+    const topH = Math.floor(Math.random() * (maxY - minY + 1)) + minY;
+    pipes.push({ x: W, topH, scored: false });
+  }
+
+  function flap() {
+    initAudio();
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    if (gameOver) { stopBGM(); reset(); return; }
+    if (!started) { started = true; if (soundEnabled) playBGM(); }
+    bird.vy = FLAP;
+    bird.flapTime = 8;
+    playSFX('wing');
+  }
+
+  canvas.addEventListener('click', function(e) {
+    const rect = canvas.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) * (W / rect.width);
+    const my = (e.clientY - rect.top) * (H / rect.height);
+
+    if (!started && !gameOver) {
+      const btnW = 64, btnH = 22, gap = 8;
+      const totalW = btnW * 3 + gap * 2;
+      const startX = Math.floor((W - totalW) / 2);
+      const btnY = Math.floor(H/2 + 30);
+      const diffs = ['easy', 'medium', 'hard'];
+      for (let i = 0; i < 3; i++) {
+        const bx = startX + i * (btnW + gap);
+        if (mx >= bx && mx <= bx + btnW && my >= btnY && my <= btnY + btnH) {
+          applyDifficulty(diffs[i]);
+          return;
+        }
+      }
+    }
+    flap();
+  });
+
+  document.addEventListener('keydown', function(e) {
+    if (document.getElementById('flappyContainer').style.display === 'none') return;
+    if (!started && !gameOver) {
+      if (e.key === '1') { applyDifficulty('easy'); return; }
+      if (e.key === '2') { applyDifficulty('medium'); return; }
+      if (e.key === '3') { applyDifficulty('hard'); return; }
+    }
+    if (e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault(); flap(); }
+  });
+
+  function update() {
+    if (!started || gameOver) return;
+
+    bird.vy += GRAVITY;
+    bird.y += bird.vy;
+    bird.flapTime = Math.max(0, bird.flapTime - 1);
+
+    bird.frame = (bird.frame + 1) % 30;
+    const birdImg = bird.flapTime > 0 ? assets.bird2 : (bird.frame < 10 ? assets.bird0 : (bird.frame < 20 ? assets.bird1 : assets.bird2));
+
+    const bh = birdImg ? birdImg.height : 24;
+    if (bird.y + bh/2 > H - 16 || bird.y - bh/2 < 0) {
+      gameOver = true; playSFX('hit');
+      setTimeout(function() { playSFX('die'); }, 200);
+      stopBGM();
+      if (score > bestScore) { bestScore = score; localStorage.setItem('flappyBest', bestScore); }
+      return;
+    }
+
+    if (pipes.length === 0 || pipes[pipes.length-1].x < W - 180) addPipe();
+
+    for (let i = pipes.length-1; i >= 0; i--) {
+      const p = pipes[i];
+      p.x -= PIPE_SPEED;
+      if (!p.scored && p.x + PIPE_W < BIRD_X) { p.scored = true; score++; playSFX('point'); }
+      if (p.x + PIPE_W < 0) { pipes.splice(i,1); continue; }
+
+      const bx = BIRD_X, by = bird.y;
+      const br = 8;
+      if (bx + br > p.x + 4 && bx - br < p.x + PIPE_W - 4) {
+        if (by - br < p.topH || by + br > p.topH + PIPE_GAP) {
+          gameOver = true; playSFX('hit');
+          setTimeout(function() { playSFX('die'); }, 200);
+          stopBGM();
+          if (score > bestScore) { bestScore = score; localStorage.setItem('flappyBest', bestScore); }
+          return;
+        }
+      }
+    }
+  }
+
+  function drawNum(n, x, y, center) {
+    const digits = String(n).split('');
+    let totalW = 0, count = 0;
+    for (const d of digits) {
+      if (assets.nums[+d]) totalW += assets.nums[+d].width;
+      else count++;
+    }
+    totalW += count * 14;
+    let sx = center ? x - totalW/2 : x;
+    for (const ch of digits) {
+      const img = assets.nums[+ch];
+      if (img) {
+        const w = img.width, h = img.height;
+        ctx.drawImage(img, 0, 0, w, h, Math.floor(sx), Math.floor(y), w, h);
+        sx += w;
+      } else {
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 28px monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText(ch, Math.floor(sx), Math.floor(y + 24));
+        sx += 14;
+      }
+    }
+  }
+
+  function draw() {
+    if (assets.bg) {
+      ctx.drawImage(assets.bg, 0, 0);
+    } else {
+      ctx.fillStyle = '#4DC9F6';
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    for (const p of pipes) {
+      if (assets.pipe) {
+        const ph = assets.pipe.height;
+        ctx.save();
+        ctx.translate(Math.floor(p.x) + PIPE_W/2, Math.floor(p.topH));
+        ctx.scale(1, -1);
+        ctx.drawImage(assets.pipe, -PIPE_W/2, 0, PIPE_W, ph);
+        ctx.restore();
+        ctx.drawImage(assets.pipe, Math.floor(p.x), Math.floor(p.topH + PIPE_GAP), PIPE_W, H - p.topH - PIPE_GAP - 16);
+      }
+    }
+
+    if (assets.base) {
+      const baseW = assets.base.width;
+      const gx = Math.floor(Date.now() * 0.05) % baseW;
+      ctx.drawImage(assets.base, gx, H - 16, baseW, assets.base.height);
+      ctx.drawImage(assets.base, gx - baseW, H - 16, baseW, assets.base.height);
+    } else {
+      ctx.fillStyle = '#8BC34A';
+      ctx.fillRect(0, H - 16, W, 16);
+    }
+
+    const birdImg = bird.flapTime > 0 ? assets.bird2 : (bird.frame < 10 ? assets.bird0 : (bird.frame < 20 ? assets.bird1 : assets.bird2));
+    if (birdImg) {
+      const bw = birdImg.width, bh = birdImg.height;
+      ctx.save();
+      ctx.translate(Math.floor(BIRD_X), Math.floor(bird.y));
+      const rot = Math.min(Math.max(bird.vy * 0.04, -0.5), 0.5);
+      ctx.rotate(rot);
+      ctx.drawImage(birdImg, -Math.floor(bw/2), -Math.floor(bh/2));
+      ctx.restore();
+    } else {
+      ctx.fillStyle = '#FFD54F';
+      ctx.beginPath();
+      ctx.ellipse(BIRD_X, bird.y, 12, 14, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    if (started && !gameOver) {
+      drawNum(score, W/2, 35, true);
+    }
+
+    if (!started && !gameOver) {
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 14px Pixel, monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('High Score: ' + bestScore, Math.floor(W/2), H - 60);
+
+      if (assets.message) {
+        const mw = assets.message.width, mh = assets.message.height;
+        ctx.drawImage(assets.message, Math.floor((W - mw)/2), Math.floor((H - mh)/2) - 20);
+      } else {
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 28px Pixel, monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('FLAPPY BIRD', Math.floor(W/2), Math.floor(H/2) - 40);
+      }
+
+      const btnW = 64, btnH = 22, gap = 8;
+      const totalW = btnW * 3 + gap * 2;
+      const startX = Math.floor((W - totalW) / 2);
+      const btnY = Math.floor(H/2 + 30);
+      const diffs = ['easy', 'medium', 'hard'];
+      for (let i = 0; i < 3; i++) {
+        const d = diffs[i];
+        const bx = startX + i * (btnW + gap);
+        const active = difficulty === d;
+        ctx.fillStyle = active ? '#FFD54F' : 'rgba(255,255,255,0.2)';
+        ctx.fillRect(bx, btnY, btnW, btnH);
+        ctx.strokeStyle = active ? '#5D4037' : 'rgba(255,255,255,0.4)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(bx, btnY, btnW, btnH);
+        ctx.fillStyle = active ? '#5D4037' : '#fff';
+        ctx.font = 'bold 11px Pixel, monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(DIFFICULTIES[d].label, Math.floor(bx + btnW/2), Math.floor(btnY + btnH/2));
+        ctx.textBaseline = 'alphabetic';
+      }
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.font = '12px Pixel, monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('Click or press Space', Math.floor(W/2), Math.floor(H/2 + 75));
+    }
+    if (gameOver) {
+      if (assets.gameover) {
+        const gw = assets.gameover.width, gh = assets.gameover.height;
+        ctx.drawImage(assets.gameover, Math.floor((W - gw)/2), Math.floor((H - gh)/2) - 30);
+      }
+      const cardX = Math.floor(W/2 - 68), cardY = Math.floor(H/2 + 15);
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(cardX, cardY, 136, 56);
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 16px Pixel, monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText('SCORE  ' + score, Math.floor(W/2), cardY + 10);
+      ctx.fillText('BEST   ' + bestScore, Math.floor(W/2), cardY + 32);
+      ctx.textBaseline = 'alphabetic';
+    }
+  }
+
+  function loop() { update(); draw(); requestAnimationFrame(loop); }
+
+  loadAssets().finally(function() {
+    preloadSFX();
+    loop();
+  });
+
+  window.addEventListener('message', function(e) {
+    if (e.data && e.data.type === 'toggleSound') {
+      soundEnabled = e.data.enabled;
+      if (!soundEnabled) stopBGM();
+      else if (started && !gameOver) { initAudio(); playBGM(); }
+    }
+    if (e.data && e.data.type === 'closeGame') {
+      stopBGM();
+    }
+  });
+})();
+</script>
+
+<script>
+(function() {
+  let statusText = 'Lượt của bạn (X)';
+  let soundEnabled = true;
+  const canvas = document.getElementById('caroCanvas');
+  const ctx = canvas.getContext('2d');
+
+  const SIZE = 30;
+  const CELL = 22;
+  const PADDING = 24;
+  const BOARD = CELL * SIZE;
+  const W = BOARD + PADDING * 2;
+  const H = BOARD + PADDING * 2;
+  canvas.width = W;
+  canvas.height = H;
+
+  let board = [];
+  let currentPlayer = 1;
+  let gameOver = false;
+  let winner = null;
+  let thinking = false;
+  let audioCtx = null;
+
+  const EMPTY = 0, PLAYER = 1, AI = -1;
+
+  function initAudio() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  function playTone(freq, dur, type, vol) {
+    if (type === undefined) type = 'sine';
+    if (vol === undefined) vol = 0.15;
+    if (!soundEnabled) return;
+    if (!audioCtx) return;
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    g.gain.setValueAtTime(vol, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(); o.stop(audioCtx.currentTime + dur);
+  }
+  function playNoise(dur, vol) {
+    if (vol === undefined) vol = 0.04;
+    if (!soundEnabled) return;
+    if (!audioCtx) return;
+    const bs = audioCtx.sampleRate * dur;
+    const b = audioCtx.createBuffer(1, bs, audioCtx.sampleRate);
+    const d = b.getChannelData(0);
+    for (let i = 0; i < bs; i++) d[i] = Math.random() * 2 - 1;
+    const s = audioCtx.createBufferSource();
+    s.buffer = b;
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(vol, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+    s.connect(g); g.connect(audioCtx.destination);
+    s.start();
+  }
+  function playPlace() {
+    playTone(800, 0.08, 'sine', 0.12);
+    playNoise(0.03, 0.03);
+  }
+  function playWin() {
+    setTimeout(function() { playTone(523, 0.15, 'sine', 0.15); }, 0);
+    setTimeout(function() { playTone(659, 0.15, 'sine', 0.15); }, 150);
+    setTimeout(function() { playTone(784, 0.15, 'sine', 0.15); }, 300);
+    setTimeout(function() { playTone(1047, 0.3, 'sine', 0.18); }, 450);
+  }
+  function playLose() {
+    playTone(400, 0.2, 'sawtooth', 0.1);
+    setTimeout(function() { playTone(300, 0.2, 'sawtooth', 0.1); }, 200);
+    setTimeout(function() { playTone(200, 0.4, 'sawtooth', 0.12); }, 400);
+  }
+
+  function initBoard() {
+    board = Array.from({ length: SIZE }, function() { return Array(SIZE).fill(EMPTY); });
+    currentPlayer = PLAYER;
+    gameOver = false;
+    winner = null;
+    thinking = false;
+    statusText = 'Lượt của bạn (X)';
+  }
+
+  initBoard();
+
+  function checkWin(r, c, player) {
+    const dirs = [[1,0],[0,1],[1,1],[1,-1]];
+    for (const [dr, dc] of dirs) {
+      let count = 1;
+      for (let d = -1; d <= 1; d += 2) {
+        let nr = r + dr * d, nc = c + dc * d;
+        while (nr >= 0 && nr < SIZE && nc >= 0 && nc < SIZE && board[nr][nc] === player) {
+          count++;
+          nr += dr * d;
+          nc += dc * d;
+        }
+      }
+      if (count >= 5) return true;
+    }
+    return false;
+  }
+
+  function isFull() {
+    for (let r = 0; r < SIZE; r++)
+      for (let c = 0; c < SIZE; c++)
+        if (board[r][c] === EMPTY) return false;
+    return true;
+  }
+
+  function placeMove(r, c, player) {
+    board[r][c] = player;
+    playPlace();
+    if (checkWin(r, c, player)) {
+      gameOver = true;
+      winner = player;
+      if (player === PLAYER) { statusText = 'Bạn thắng!'; playWin(); }
+      else { statusText = 'AI thắng!'; playLose(); }
+      return true;
+    }
+    if (isFull()) {
+      gameOver = true;
+      statusText = 'Hòa!';
+      playTone(440, 0.3, 'sine', 0.1);
+      return true;
+    }
+    return false;
+  }
+
+  const DIRECTIONS = [[1,0],[0,1],[1,1],[1,-1]];
+
+  function analyzeDir(r, c, dr, dc, player) {
+    let count = 0, open = 0;
+    for (let d = 1; d <= 4; d++) {
+      const nr = r + dr * d, nc = c + dc * d;
+      if (nr < 0 || nr >= SIZE || nc < 0 || nc >= SIZE) break;
+      if (board[nr][nc] === player) count++;
+      else { if (board[nr][nc] === EMPTY) open++; break; }
+    }
+    for (let d = 1; d <= 4; d++) {
+      const nr = r - dr * d, nc = c - dc * d;
+      if (nr < 0 || nr >= SIZE || nc < 0 || nc >= SIZE) break;
+      if (board[nr][nc] === player) count++;
+      else { if (board[nr][nc] === EMPTY) open++; break; }
+    }
+    return { count, open };
+  }
+
+  function patScore(count, open) {
+    if (count >= 5) return 100000000;
+    if (count === 4) return open >= 2 ? 20000000 : (open === 1 ? 800000 : 10000);
+    if (count === 3) return open >= 2 ? 150000 : (open === 1 ? 15000 : 500);
+    if (count === 2) return open >= 2 ? 3000 : (open === 1 ? 300 : 20);
+    if (count === 1) return open >= 2 ? 30 : (open === 1 ? 6 : 1);
+    return 0;
+  }
+
+  function cellThreat(r, c, player) {
+    board[r][c] = player;
+    const win = checkWin(r, c, player);
+    board[r][c] = EMPTY;
+    if (win) return 100;
+
+    let threat = 0;
+    for (const [dr, dc] of DIRECTIONS) {
+      const a = analyzeDir(r, c, dr, dc, player);
+      if (a.count >= 4 && a.open >= 1) threat = Math.max(threat, 10);
+      else if (a.count >= 3 && a.open >= 2) threat = Math.max(threat, 5);
+    }
+    return threat;
+  }
+
+  function hasDoubleThreatMove(r, c, player) {
+    board[r][c] = player;
+    let threats = 0;
+    for (const [dr, dc] of DIRECTIONS) {
+      const a = analyzeDir(r, c, dr, dc, player);
+      if (a.count >= 3 && a.open >= 2) threats++;
+      if (a.count >= 4 && a.open >= 1) threats += 2;
+    }
+    board[r][c] = EMPTY;
+    return threats >= 2;
+  }
+
+  function heuristic(r, c) {
+    let myScore = 0, oppScore = 0;
+    for (const [dr, dc] of DIRECTIONS) {
+      const a = analyzeDir(r, c, dr, dc, AI);
+      const b = analyzeDir(r, c, dr, dc, PLAYER);
+      myScore += patScore(a.count, a.open);
+      oppScore += patScore(b.count, b.open);
+    }
+    return myScore * 1.2 + oppScore;
+  }
+
+  function getCandidates() {
+    const list = [];
+    const visited = new Set();
+    for (let r = 0; r < SIZE; r++) {
+      for (let c = 0; c < SIZE; c++) {
+        if (board[r][c] !== EMPTY) continue;
+        for (let dr = -2; dr <= 2; dr++) {
+          for (let dc = -2; dc <= 2; dc++) {
+            if (dr === 0 && dc === 0) continue;
+            const nr = r + dr, nc = c + dc;
+            if (nr >= 0 && nr < SIZE && nc >= 0 && nc < SIZE && board[nr][nc] !== EMPTY) {
+              const key = r * SIZE + c;
+              if (!visited.has(key)) { visited.add(key); list.push({ r, c, s: heuristic(r, c) }); }
+            }
+          }
+        }
+      }
+    }
+    list.sort(function(a, b) {
+      const ta = cellThreat(a.r, a.c, AI) + cellThreat(a.r, a.c, PLAYER);
+      const tb = cellThreat(b.r, b.c, AI) + cellThreat(b.r, b.c, PLAYER);
+      if (ta !== tb) return tb - ta;
+      return b.s - a.s;
+    });
+    return list;
+  }
+
+  function evaluateBoard() {
+    let score = 0;
+    for (let r = 0; r < SIZE; r++) {
+      for (let c = 0; c < SIZE; c++) {
+        if (board[r][c] === EMPTY) continue;
+        for (const [dr, dc] of DIRECTIONS) {
+          const a = analyzeDir(r, c, dr, dc, board[r][c]);
+          if (board[r][c] === AI) score += patScore(a.count, a.open);
+          else score -= patScore(a.count, a.open) * 1.1;
+        }
+      }
+    }
+    return score;
+  }
+
+  function getCandsFast() {
+    const list = [];
+    for (let r = 0; r < SIZE; r++) {
+      for (let c = 0; c < SIZE; c++) {
+        if (board[r][c] !== EMPTY) continue;
+        for (let dr = -1; dr <= 1; dr++) {
+          for (let dc = -1; dc <= 1; dc++) {
+            if (dr === 0 && dc === 0) continue;
+            const nr = r + dr, nc = c + dc;
+            if (nr >= 0 && nr < SIZE && nc >= 0 && nc < SIZE && board[nr][nc] !== EMPTY) {
+              list.push({ r, c }); dr = 2; dc = 2;
+            }
+          }
+        }
+      }
+    }
+    return list;
+  }
+
+  function alphaBeta(depth, alpha, beta, isMax, maxDepth) {
+    const player = isMax ? AI : PLAYER;
+
+    if (depth <= 0) {
+      return isMax ? evaluateBoard() : -evaluateBoard();
+    }
+
+    const cands = getCandsFast();
+    if (cands.length === 0) return 0;
+
+    cands.sort(function(a, b) {
+      const ta = cellThreat(a.r, a.c, AI) + cellThreat(a.r, a.c, PLAYER);
+      const tb = cellThreat(b.r, b.c, AI) + cellThreat(b.r, b.c, PLAYER);
+      return tb - ta;
+    });
+
+    const width = Math.min(
+      depth >= maxDepth - 1 ? 18 : (depth >= maxDepth - 2 ? 14 : 10),
+      cands.length
+    );
+
+    if (isMax) {
+      let best = -Infinity;
+      for (let i = 0; i < width; i++) {
+        const { r, c } = cands[i];
+        board[r][c] = AI;
+        if (checkWin(r, c, AI)) { board[r][c] = EMPTY; return 100000000 - (maxDepth - depth) * 10; }
+        board[r][c] = EMPTY;
+
+        board[r][c] = AI;
+        const v = alphaBeta(depth - 1, alpha, beta, false, maxDepth);
+        board[r][c] = EMPTY;
+        if (v > best) best = v;
+        if (v > alpha) alpha = v;
+        if (beta <= alpha) break;
+      }
+      return best;
+    } else {
+      let best = Infinity;
+      for (let i = 0; i < width; i++) {
+        const { r, c } = cands[i];
+        board[r][c] = PLAYER;
+        if (checkWin(r, c, PLAYER)) { board[r][c] = EMPTY; return -100000000 + (maxDepth - depth) * 10; }
+        board[r][c] = EMPTY;
+
+        board[r][c] = PLAYER;
+        const v = alphaBeta(depth - 1, alpha, beta, true, maxDepth);
+        board[r][c] = EMPTY;
+        if (v < best) best = v;
+        if (v < beta) beta = v;
+        if (beta <= alpha) break;
+      }
+      return best;
+    }
+  }
+
+  function iterativeDeepening(timeLimitMs) {
+    const start = performance.now();
+    const candidates = getCandidates();
+    if (candidates.length === 0) return null;
+
+    let bestMove = candidates[0];
+    let bestScore = -Infinity;
+
+    for (let depth = 3; depth <= 12; depth++) {
+      let currentBest = null;
+      let currentScore = -Infinity;
+
+      const width = Math.min(depth <= 4 ? 18 : (depth <= 6 ? 14 : 10), candidates.length);
+
+      for (let i = 0; i < width; i++) {
+        const { r, c } = candidates[i];
+        board[r][c] = AI;
+        const score = alphaBeta(depth - 1, -Infinity, Infinity, false, depth);
+        board[r][c] = EMPTY;
+
+        if (score > currentScore) {
+          currentScore = score;
+          currentBest = { r, c };
+        }
+
+        if (performance.now() - start > timeLimitMs) { depth = 999; break; }
+      }
+
+      if (depth < 999) {
+        if (currentBest) { bestMove = currentBest; bestScore = currentScore; }
+        if (currentScore >= 99000000) break;
+      }
+
+      if (performance.now() - start > timeLimitMs) break;
+    }
+
+    return bestMove;
+  }
+
+  function aiMove() {
+    if (gameOver || thinking) return;
+    thinking = true;
+    statusText = 'AI đang suy nghĩ...';
+
+    setTimeout(function() {
+      if (gameOver) { thinking = false; return; }
+
+      for (const { r, c } of getCandidates()) {
+        board[r][c] = AI;
+        if (checkWin(r, c, AI)) { board[r][c] = EMPTY; placeMove(r, c, AI); doneAI(); return; }
+        board[r][c] = EMPTY;
+      }
+
+      for (const { r, c } of getCandidates()) {
+        board[r][c] = PLAYER;
+        if (checkWin(r, c, PLAYER)) { board[r][c] = EMPTY; placeMove(r, c, AI); doneAI(); return; }
+        board[r][c] = EMPTY;
+      }
+
+      for (const { r, c } of getCandidates()) {
+        if (hasDoubleThreatMove(r, c, AI)) { placeMove(r, c, AI); doneAI(); return; }
+      }
+
+      for (const { r, c } of getCandidates()) {
+        if (hasDoubleThreatMove(r, c, PLAYER)) { placeMove(r, c, AI); doneAI(); return; }
+      }
+
+      let emptyCount = 0;
+      for (let r = 0; r < SIZE; r++)
+        for (let c = 0; c < SIZE; c++)
+          if (board[r][c] === EMPTY) emptyCount++;
+
+      if (emptyCount === SIZE * SIZE) { placeMove(Math.floor(SIZE/2), Math.floor(SIZE/2), AI); doneAI(); return; }
+      if (emptyCount === SIZE * SIZE - 1) {
+        const mid = Math.floor(SIZE/2);
+        for (let dr = -1; dr <= 1; dr++)
+          for (let dc = -1; dc <= 1; dc++) {
+            const nr = mid + dr, nc = mid + dc;
+            if (board[nr][nc] === EMPTY) { placeMove(nr, nc, AI); doneAI(); return; }
+          }
+      }
+
+      const timeLimit = emptyCount > 850 ? 1500 : (emptyCount > 600 ? 2000 : 2500);
+      const best = iterativeDeepening(timeLimit);
+
+      if (best) {
+        placeMove(best.r, best.c, AI);
+      }
+      doneAI();
+    }, 50);
+  }
+
+  function doneAI() {
+    if (!gameOver) {
+      currentPlayer = PLAYER;
+      statusText = 'Lượt của bạn (X)';
+    }
+    thinking = false;
+    draw();
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    ctx.fillStyle = '#F5E6CA';
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.fillStyle = '#333';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(statusText, Math.floor(W/2), 4);
+    ctx.textBaseline = 'alphabetic';
+
+    ctx.strokeStyle = '#C4A97D';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(PADDING - 4, PADDING - 4, BOARD + 8, BOARD + 8);
+
+    ctx.strokeStyle = '#A0825A';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= SIZE; i++) {
+      const pos = PADDING + i * CELL;
+      ctx.beginPath();
+      ctx.moveTo(PADDING, pos);
+      ctx.lineTo(PADDING + BOARD, pos);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(pos, PADDING);
+      ctx.lineTo(pos, PADDING + BOARD);
+      ctx.stroke();
+    }
+
+    const stars = [[4,4],[4,14],[4,24],[14,4],[14,14],[14,24],[24,4],[24,14],[24,24]];
+    ctx.fillStyle = '#A0825A';
+    for (const [r, c] of stars) {
+      const x = PADDING + (c + 0.5) * CELL, y = PADDING + (r + 0.5) * CELL;
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    const half = CELL / 2 - 4;
+    for (let r = 0; r < SIZE; r++) {
+      for (let c = 0; c < SIZE; c++) {
+        if (board[r][c] === EMPTY) continue;
+        const x = PADDING + (c + 0.5) * CELL, y = PADDING + (r + 0.5) * CELL;
+        if (board[r][c] === PLAYER) {
+          ctx.strokeStyle = '#e53935';
+          ctx.lineWidth = 3;
+          ctx.shadowColor = 'rgba(0,0,0,0.15)';
+          ctx.shadowBlur = 3;
+          ctx.beginPath();
+          ctx.moveTo(x - half, y - half);
+          ctx.lineTo(x + half, y + half);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(x + half, y - half);
+          ctx.lineTo(x - half, y + half);
+          ctx.stroke();
+          ctx.shadowBlur = 0;
+        } else {
+          ctx.strokeStyle = '#2E7D32';
+          ctx.lineWidth = 3;
+          ctx.shadowColor = 'rgba(0,0,0,0.15)';
+          ctx.shadowBlur = 3;
+          ctx.beginPath();
+          ctx.arc(x, y, half - 1, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.shadowBlur = 0;
+        }
+      }
+    }
+
+    let lastR = -1, lastC = -1;
+    for (let r = 0; r < SIZE; r++)
+      for (let c = 0; c < SIZE; c++)
+        if (board[r][c] !== EMPTY) { lastR = r; lastC = c; }
+    if (lastR >= 0) {
+      const x = PADDING + (lastC + 0.5) * CELL, y = PADDING + (lastR + 0.5) * CELL;
+      ctx.strokeStyle = '#FFD700';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(x, y, 5, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    if (gameOver) {
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.fillRect(0, 0, W, H);
+      const bx = Math.floor(W/2 - 70), by = Math.floor(H/2 + 80);
+      ctx.fillStyle = 'rgba(255,255,255,0.2)';
+      ctx.fillRect(bx, by, 140, 36);
+      ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(bx, by, 140, 36);
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 16px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('Chơi lại', Math.floor(W/2), by + 18);
+      ctx.textBaseline = 'alphabetic';
+    }
+  }
+
+  canvas.addEventListener('click', function(e) {
+    initAudio();
+    const rect = canvas.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) * (W / rect.width);
+    const my = (e.clientY - rect.top) * (H / rect.height);
+
+    if (gameOver) {
+      const bx = Math.floor(W/2 - 70), by = Math.floor(H/2 + 80);
+      if (mx >= bx && mx <= bx + 140 && my >= by && my <= by + 36) {
+        initBoard(); draw(); return;
+      }
+      return;
+    }
+
+    if (thinking || currentPlayer !== PLAYER) return;
+    const c = Math.floor((mx - PADDING) / CELL);
+    const r = Math.floor((my - PADDING) / CELL);
+    if (r < 0 || r >= SIZE || c < 0 || c >= SIZE) return;
+    if (board[r][c] !== EMPTY) return;
+
+    const end = placeMove(r, c, PLAYER);
+    draw();
+    if (!end) {
+      currentPlayer = AI;
+      aiMove();
+    }
+  });
+
+  draw();
+
+  window.addEventListener('message', function(e) {
+    if (e.data && e.data.type === 'toggleSound') {
+      soundEnabled = e.data.enabled;
+    }
+  });
+})();
+</script>
+
 </body>
 </html>
