@@ -656,8 +656,14 @@ body {
   /* ---- Trystero (P2P) ---- */
   let room = null, moveAction = null, startAction = null;
 
+  function getTrystero() {
+    var t = window.Trystero || window.trystero;
+    if (!t) throw new Error('Trystero chưa được tải');
+    return t;
+  }
+
   function initTrystero(code) {
-    const {joinRoom} = Trystero;
+    const {joinRoom} = getTrystero();
     room = joinRoom({appId: 'caro-game-hub'}, code);
     moveAction = room.makeAction('move');
     moveAction.onMessage = (data, {peerId}) => {
