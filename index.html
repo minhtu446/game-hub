@@ -892,8 +892,9 @@ body {
 
     orderMoves(cands);
 
+    const maxW = SIZE <= 5 ? 14 : (SIZE <= 10 ? 12 : 10);
     const width = Math.min(
-      SIZE <= 10 ? cands.length : (depth >= maxDepth - 1 ? 18 : (depth >= maxDepth - 2 ? 14 : 10)),
+      depth >= maxDepth - 1 ? maxW : (depth >= maxDepth - 2 ? Math.floor(maxW * 0.7) : Math.floor(maxW * 0.5)),
       cands.length
     );
 
@@ -933,13 +934,14 @@ body {
 
     let bestMove = candidates[0];
     let bestScore = -Infinity;
-    const maxDepthLimit = SIZE <= 5 ? 20 : (SIZE <= 10 ? 14 : 10);
+    const maxDepthLimit = SIZE <= 5 ? 10 : (SIZE <= 10 ? 6 : 4);
 
     for (let depth = 3; depth <= maxDepthLimit; depth++) {
       let currentBest = null;
       let currentScore = -Infinity;
 
-      const width = Math.min(SIZE <= 10 ? candidates.length : (depth <= 4 ? 18 : (depth <= 6 ? 14 : 10)), candidates.length);
+      const maxW = SIZE <= 5 ? 14 : (SIZE <= 10 ? 12 : 10);
+      const width = Math.min(depth <= 4 ? maxW : (depth <= 6 ? Math.floor(maxW * 0.7) : Math.floor(maxW * 0.5)), candidates.length);
 
       for (let i = 0; i < width; i++) {
         const { r, c } = candidates[i];
@@ -1001,7 +1003,7 @@ body {
         board[r][c] = EMPTY;
       }
 
-      var timeLimit = emptyCount > 850 ? 2000 : (emptyCount > 600 ? 3000 : (emptyCount > 300 ? 4000 : 5000));
+      var timeLimit = Math.max(500, Math.min(2000, emptyCount * 2));
       var best = iterativeDeepening(timeLimit);
 
       if (best) {
