@@ -629,7 +629,8 @@ body {
 })();
 </script>
 
-<!-- Trystero imported dynamically -->
+<!-- Trystero P2P library -->
+<script src="trystero.min.js"></script>
 <script>
 (function() {
   let statusText = 'Lượt của bạn (X)';
@@ -655,9 +656,9 @@ body {
   /* ---- Trystero (P2P) ---- */
   let room = null, moveAction = null, startAction = null;
 
-  async function initTrystero(code) {
-    const m = await import('./trystero.min.js');
-    room = m.joinRoom({appId: 'caro-game-hub'}, code);
+  function initTrystero(code) {
+    const {joinRoom} = Trystero;
+    room = joinRoom({appId: 'caro-game-hub'}, code);
     moveAction = room.makeAction('move');
     moveAction.onMessage = (data, {peerId}) => {
       if (isMultiplayer && board && data.r !== undefined && data.c !== undefined) {
@@ -1160,11 +1161,11 @@ body {
     }
   }
 
-  async function createTrysteroGame() {
+  function createTrysteroGame() {
     var code = Math.random().toString(36).substring(2, 8).toUpperCase();
     document.getElementById('caroCodeDisplay').textContent = 'Đang kết nối...';
     try {
-      await initTrystero(code);
+      initTrystero(code);
       document.getElementById('caroCodeDisplay').textContent = code;
       room.onPeerJoin = function(peerId) {
         if (!gameStarted) {
@@ -1201,12 +1202,12 @@ body {
   document.getElementById('caroBackOnline').addEventListener('click', function() { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); });
   document.getElementById('caroBackJoin').addEventListener('click', function() { showCaroScreen('caroOnline'); });
 
-  document.getElementById('caroConnectBtn').addEventListener('click', async function() {
+  document.getElementById('caroConnectBtn').addEventListener('click', function() {
     var code = document.getElementById('caroCodeInput').value.trim().toUpperCase();
     if (!code) { document.getElementById('caroJoinError').style.display = ''; document.getElementById('caroJoinError').textContent = 'Nhập mã trận!'; return; }
     document.getElementById('caroJoinError').style.display = 'none';
     try {
-      await initTrystero(code);
+      initTrystero(code);
       isMultiplayer = true;
       room.onPeerLeave = function(peerId) {
         if (isMultiplayer && !gameOver) {
