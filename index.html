@@ -92,6 +92,24 @@ body {
   z-index: 100;
 }
 .footer span { margin: 0 4px; }
+.caro-size-btn {
+  background: rgba(255,255,255,0.08);
+  border: 2px solid rgba(255,255,255,0.2);
+  border-radius: 12px;
+  color: #fff;
+  font-size: 20px;
+  font-weight: bold;
+  padding: 24px 40px;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-family: 'Segoe UI', sans-serif;
+  line-height: 1.5;
+}
+.caro-size-btn:hover {
+  background: rgba(255,255,255,0.15);
+  border-color: #FFD54F;
+  transform: translateY(-4px);
+}
 </style>
 </head>
 <body>
@@ -110,9 +128,18 @@ body {
   <canvas id="flappyCanvas"></canvas>
 </div>
 
-<div id="caroContainer" class="game-container">
-  <canvas id="caroCanvas"></canvas>
-</div>
+  <div id="caroContainer" class="game-container">
+    <div id="caroMenu" style="text-align:center;padding:40px">
+      <h2 style="color:#FFD54F;font-size:36px;margin-bottom:30px">Chọn kích thước</h2>
+      <div id="caroSizes" style="display:flex;flex-wrap:wrap;gap:16px;justify-content:center">
+        <button class="caro-size-btn" data-size="5" data-win="3">5x5<br><span style="font-size:14px;opacity:0.7">3 ô thắng</span></button>
+        <button class="caro-size-btn" data-size="10" data-win="4">10x10<br><span style="font-size:14px;opacity:0.7">4 ô thắng</span></button>
+        <button class="caro-size-btn" data-size="20" data-win="5">20x20<br><span style="font-size:14px;opacity:0.7">5 ô thắng</span></button>
+        <button class="caro-size-btn" data-size="30" data-win="5" style="border-color:#FFD54F;background:rgba(255,213,79,0.15)">30x30<br><span style="font-size:14px;opacity:0.7">5 ô thắng</span></button>
+      </div>
+    </div>
+    <canvas id="caroCanvas" style="display:none"></canvas>
+  </div>
 
 <div class="footer">
   <span>Ph&iacute;m tắt: F Flappy &middot; C Caro &middot; ESC Quay lại</span>
@@ -142,6 +169,8 @@ body {
     caroC.style.display = 'none';
     currentGame = null;
     window.postMessage({ type: 'closeGame' }, '*');
+    document.getElementById('caroMenu').style.display = '';
+    document.getElementById('caroCanvas').style.display = 'none';
   }
 
   document.querySelectorAll('.menu-btn').forEach(function(btn) {
@@ -563,23 +592,38 @@ body {
   const canvas = document.getElementById('caroCanvas');
   const ctx = canvas.getContext('2d');
 
-  const SIZE = 30;
-  const CELL = 22;
-  const PADDING = 24;
-  const BOARD = CELL * SIZE;
-  const W = BOARD + PADDING * 2;
-  const H = BOARD + PADDING * 2;
-  canvas.width = W;
-  canvas.height = H;
-
+  let SIZE = 30, WIN = 5, CELL = 22;
+  let BOARD, PADDING = 24, W, H;
   let board = [];
   let currentPlayer = 1;
   let gameOver = false;
   let winner = null;
   let thinking = false;
   let audioCtx = null;
+  let gameInit = false;
 
   const EMPTY = 0, PLAYER = 1, AI = -1;
+
+  // Size selection
+  document.querySelectorAll('.caro-size-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      SIZE = parseInt(btn.getAttribute('data-size'));
+      WIN = parseInt(btn.getAttribute('data-win'));
+      CELL = SIZE <= 10 ? 48 : (SIZE <= 20 ? 28 : 22);
+      PADDING = 24;
+      BOARD = CELL * SIZE;
+      W = BOARD + PADDING * 2;
+      H = BOARD + PADDING * 2;
+      canvas.width = W;
+      canvas.height = H;
+      document.getElementById('caroMenu').style.display = 'none';
+      canvas.style.display = 'block';
+      gameInit = true;
+      statusText = 'Lượt của bạn (X)';
+      initGame();
+      draw();
+    });
+  });
 
   function initAudio() {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -631,7 +675,7 @@ body {
     setTimeout(function() { playTone(200, 0.4, 'sawtooth', 0.12); }, 400);
   }
 
-  function initBoard() {
+  function initGame() {
     board = Array.from({ length: SIZE }, function() { return Array(SIZE).fill(EMPTY); });
     currentPlayer = PLAYER;
     gameOver = false;
@@ -639,8 +683,6 @@ body {
     thinking = false;
     statusText = 'Lượt của bạn (X)';
   }
-
-  initBoard();
 
   function checkWin(r, c, player) {
     const dirs = [[1,0],[0,1],[1,1],[1,-1]];
@@ -654,7 +696,7 @@ body {
           nc += dc * d;
         }
       }
-      if (count >= 5) return true;
+      if (count >= WIN) return true;
     }
     return false;
   }
@@ -705,11 +747,21 @@ body {
   }
 
   function patScore(count, open) {
-    if (count >= 5) return 100000000;
-    if (count === 4) return open >= 2 ? 20000000 : (open === 1 ? 800000 : 10000);
-    if (count === 3) return open >= 2 ? 150000 : (open === 1 ? 15000 : 500);
-    if (count === 2) return open >= 2 ? 3000 : (open === 1 ? 300 : 20);
-    if (count === 1) return open >= 2 ? 30 : (open === 1 ? 6 : 1);
+    if (count >= WIN) return 100000000;
+    const w = WIN;
+    if (w === 5) {
+      if (count === 4) return open >= 2 ? 20000000 : (open === 1 ? 800000 : 10000);
+      if (count === 3) return open >= 2 ? 150000 : (open === 1 ? 15000 : 500);
+      if (count === 2) return open >= 2 ? 3000 : (open === 1 ? 300 : 20);
+      if (count === 1) return open >= 2 ? 30 : (open === 1 ? 6 : 1);
+    } else if (w === 4) {
+      if (count === 3) return open >= 2 ? 20000000 : (open === 1 ? 800000 : 10000);
+      if (count === 2) return open >= 2 ? 150000 : (open === 1 ? 15000 : 500);
+      if (count === 1) return open >= 2 ? 3000 : (open === 1 ? 300 : 20);
+    } else if (w === 3) {
+      if (count === 2) return open >= 2 ? 20000000 : (open === 1 ? 800000 : 10000);
+      if (count === 1) return open >= 2 ? 150000 : (open === 1 ? 15000 : 500);
+    }
     return 0;
   }
 
@@ -719,11 +771,17 @@ body {
     board[r][c] = EMPTY;
     if (win) return 100;
 
+    const w = WIN;
     let threat = 0;
     for (const [dr, dc] of DIRECTIONS) {
       const a = analyzeDir(r, c, dr, dc, player);
-      if (a.count >= 4 && a.open >= 1) threat = Math.max(threat, 10);
-      else if (a.count >= 3 && a.open >= 2) threat = Math.max(threat, 5);
+      if (w === 5 || w === 4) {
+        if (a.count >= 4 && a.open >= 1) threat = Math.max(threat, 10);
+        else if (a.count >= 3 && a.open >= 2) threat = Math.max(threat, 5);
+      } else {
+        if (a.count >= 2 && a.open >= 1) threat = Math.max(threat, 10);
+        else if (a.count >= 1 && a.open >= 2) threat = Math.max(threat, 5);
+      }
     }
     return threat;
   }
@@ -731,10 +789,16 @@ body {
   function hasDoubleThreatMove(r, c, player) {
     board[r][c] = player;
     let threats = 0;
+    const w = WIN;
     for (const [dr, dc] of DIRECTIONS) {
       const a = analyzeDir(r, c, dr, dc, player);
-      if (a.count >= 3 && a.open >= 2) threats++;
-      if (a.count >= 4 && a.open >= 1) threats += 2;
+      if (w === 5 || w === 4) {
+        if (a.count >= 3 && a.open >= 2) threats++;
+        if (a.count >= 4 && a.open >= 1) threats += 2;
+      } else {
+        if (a.count >= 1 && a.open >= 2) threats++;
+        if (a.count >= 2 && a.open >= 1) threats += 2;
+      }
     }
     board[r][c] = EMPTY;
     return threats >= 2;
@@ -1000,13 +1064,22 @@ body {
       ctx.stroke();
     }
 
-    const stars = [[4,4],[4,14],[4,24],[14,4],[14,14],[14,24],[24,4],[24,14],[24,24]];
-    ctx.fillStyle = '#A0825A';
-    for (const [r, c] of stars) {
-      const x = PADDING + (c + 0.5) * CELL, y = PADDING + (r + 0.5) * CELL;
-      ctx.beginPath();
-      ctx.arc(x, y, 4, 0, Math.PI * 2);
-      ctx.fill();
+    if (SIZE >= 15) {
+      const step = Math.floor(SIZE / 2);
+      const stars = [];
+      for (let i = step; i < SIZE; i += step) {
+        for (let j = step; j < SIZE; j += step) {
+          const isEdge = (i === step || i === SIZE - step) && (j === step || j === SIZE - step);
+          if (isEdge || SIZE <= 19) stars.push([i, j]);
+        }
+      }
+      ctx.fillStyle = '#A0825A';
+      for (const [r, c] of stars) {
+        const x = PADDING + (c + 0.5) * CELL, y = PADDING + (r + 0.5) * CELL;
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
 
     const half = CELL / 2 - 4;
@@ -1081,7 +1154,7 @@ body {
     if (gameOver) {
       const bx = Math.floor(W/2 - 70), by = Math.floor(H/2 + 80);
       if (mx >= bx && mx <= bx + 140 && my >= by && my <= by + 36) {
-        initBoard(); draw(); return;
+        initGame(); draw(); return;
       }
       return;
     }
@@ -1099,8 +1172,6 @@ body {
       aiMove();
     }
   });
-
-  draw();
 
   window.addEventListener('message', function(e) {
     if (e.data && e.data.type === 'toggleSound') {
