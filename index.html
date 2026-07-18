@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Game Hub</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: #1a1a2e;
+  font-family: 'Segoe UI', sans-serif;
+  overflow: hidden;
+  padding: 20px;
+}
+h1 {
+  color: #fff;
+  font-size: 42px;
+  margin-bottom: 60px;
+  text-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  letter-spacing: 2px;
+}
+.menu {
+  display: flex;
+  gap: 40px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.card {
+  width: 280px;
+  height: 340px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  border: 2px solid rgba(255,255,255,0.1);
+  text-decoration: none;
+  color: #fff;
+  padding: 30px;
+}
+.card:hover {
+  transform: translateY(-8px);
+  background: rgba(255,255,255,0.1);
+  border-color: rgba(255,255,255,0.3);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.icon {
+  font-size: 80px;
+  line-height: 1;
+}
+.label {
+  font-size: 24px;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+.desc {
+  font-size: 14px;
+  color: rgba(255,255,255,0.5);
+  text-align: center;
+}
+.flappy .icon { color: #FFD54F; }
+.caro .icon { color: #4FC3F7; }
+.footer {
+  margin-top: 60px;
+  color: rgba(255,255,255,0.2);
+  font-size: 13px;
+}
+</style>
+</head>
+<body>
+<h1>🎮 Game Hub</h1>
+<div class="menu">
+  <a class="card flappy" href="https://minhtu446.github.io/flappy-bird-game/" target="_blank">
+    <div class="icon">🐤</div>
+    <div class="label">Flappy Bird</div>
+    <div class="desc">Click để bay qua ống, ghi điểm cao nhất!</div>
+  </a>
+  <a class="card caro" href="https://minhtu446.github.io/caro-ai/" target="_blank">
+    <div class="icon">⭕</div>
+    <div class="label">Caro AI</div>
+    <div class="desc">Đấu trí với AI bất bại trên bàn 30x30!</div>
+  </a>
+</div>
+<div class="footer">Click chọn game để chơi</div>
+</body>
+</html>
