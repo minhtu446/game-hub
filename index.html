@@ -119,8 +119,11 @@ body {
   <button class="menu-btn" data-game="flappy">
     Flappy Bird <span class="shortcut">F</span>
   </button>
-  <button class="menu-btn" data-game="caro">
+  <button class="menu-btn" data-game="caroAI">
     Caro AI <span class="shortcut">C</span>
+  </button>
+  <button class="menu-btn" data-game="caroOnline">
+    Đấu Online <span class="shortcut">O</span>
   </button>
 </div>
 
@@ -130,25 +133,16 @@ body {
 
   <div id="caroContainer" class="game-container">
     <div id="caroMenu" style="text-align:center;padding:40px">
-      <!-- Screen 1: Mode selection -->
-      <div id="caroMode">
-        <h2 style="color:#FFD54F;font-size:36px;margin-bottom:30px">Caro</h2>
-        <div style="display:flex;flex-wrap:wrap;gap:16px;justify-content:center">
-          <button class="caro-size-btn" id="caroModeAI">Đấu với AI</button>
-          <button class="caro-size-btn" id="caroModeOnline">Đấu Online</button>
-        </div>
-      </div>
-      <!-- Screen 2: Size selection -->
-      <div id="caroSizeS" style="display:none">
-        <h2 style="color:#FFD54F;font-size:36px;margin-bottom:20px">Chọn kích thước</h2>
+      <!-- Screen 1: Size selection (AI) -->
+      <div id="caroSizeS">
+        <h2 style="color:#FFD54F;font-size:36px;margin-bottom:20px">Caro AI - Chọn kích thước</h2>
         <div style="display:flex;flex-wrap:wrap;gap:16px;justify-content:center">
           <button class="caro-size-btn" data-size="5" data-win="3">5x5<br><span style="font-size:14px;opacity:0.7">3 ô thắng</span></button>
           <button class="caro-size-btn" data-size="10" data-win="4">10x10<br><span style="font-size:14px;opacity:0.7">4 ô thắng</span></button>
           <button class="caro-size-btn" data-size="20" data-win="5">20x20<br><span style="font-size:14px;opacity:0.7">5 ô thắng</span></button>
         </div>
-        <div style="margin-top:24px"><button class="caro-size-btn" id="caroBackAI" style="padding:12px 30px;font-size:16px">Quay lại</button></div>
       </div>
-      <!-- Screen 3: Online menu -->
+      <!-- Screen 2: Online menu -->
       <div id="caroOnline" style="display:none">
         <h2 style="color:#FFD54F;font-size:36px;margin-bottom:30px">Đấu Online</h2>
         <div style="display:flex;flex-wrap:wrap;gap:16px;justify-content:center">
@@ -180,13 +174,12 @@ body {
   </div>
 
 <div class="footer">
-  <span>Ph&iacute;m tắt: F Flappy &middot; C Caro &middot; ESC Quay lại</span>
+  <span>Ph&iacute;m tắt: F Flappy &middot; C Caro AI &middot; O Đấu Online &middot; ESC Quay lại</span>
 </div>
 
 <script>
 (function() {
   let currentGame = null;
-  
 
   const menu = document.getElementById('menu');
   const flappyC = document.getElementById('flappyContainer');
@@ -196,8 +189,16 @@ body {
     menu.style.display = 'none';
     flappyC.style.display = 'none';
     caroC.style.display = 'none';
-    if (name === 'flappy') flappyC.style.display = 'block';
-    else caroC.style.display = 'block';
+    if (name === 'flappy') {
+      flappyC.style.display = 'block';
+    } else {
+      caroC.style.display = 'block';
+      var showAI = name === 'caroAI';
+      document.getElementById('caroSizeS').style.display = showAI ? '' : 'none';
+      document.getElementById('caroOnline').style.display = showAI ? 'none' : '';
+      document.getElementById('caroCreate').style.display = 'none';
+      document.getElementById('caroJoin').style.display = 'none';
+    }
     currentGame = name;
   }
 
@@ -207,7 +208,10 @@ body {
     caroC.style.display = 'none';
     currentGame = null;
     window.postMessage({ type: 'closeGame' }, '*');
-    document.getElementById('caroMenu').style.display = '';
+    document.getElementById('caroSizeS').style.display = '';
+    document.getElementById('caroOnline').style.display = 'none';
+    document.getElementById('caroCreate').style.display = 'none';
+    document.getElementById('caroJoin').style.display = 'none';
     document.getElementById('caroCanvas').style.display = 'none';
   }
 
@@ -218,10 +222,10 @@ body {
   window.addEventListener('keydown', function(e) {
     if (currentGame === null) {
       if (e.key === 'f' || e.key === 'F') { openGame('flappy'); e.preventDefault(); return; }
-      if (e.key === 'c' || e.key === 'C') { openGame('caro'); e.preventDefault(); return; }
+      if (e.key === 'c' || e.key === 'C') { openGame('caroAI'); e.preventDefault(); return; }
+      if (e.key === 'o' || e.key === 'O') { openGame('caroOnline'); e.preventDefault(); return; }
     }
     if (e.key === 'Escape') { closeGame(); e.preventDefault(); return; }
-
   });
 })();
 </script>
@@ -643,19 +647,13 @@ body {
 
   let isMultiplayer = false;
   let peer = null, conn = null, myPeerId = null;
-  let myPlayerNum = 1; // 1 = X (first), 2 = O (second)
+  let myPlayerNum = 1;
   let waitingForMove = false;
 
   function showCaroScreen(id) {
     document.querySelectorAll('#caroMenu > div').forEach(function(d) { d.style.display = 'none'; });
     document.getElementById(id).style.display = '';
   }
-
-  document.getElementById('caroModeAI').addEventListener('click', function() { showCaroScreen('caroSizeS'); });
-  document.getElementById('caroModeOnline').addEventListener('click', function() { showCaroScreen('caroOnline'); });
-  document.getElementById('caroBackAI').addEventListener('click', function() { showCaroScreen('caroMode'); });
-  document.getElementById('caroBackOnline').addEventListener('click', function() { showCaroScreen('caroMode'); });
-  document.getElementById('caroBackJoin').addEventListener('click', function() { showCaroScreen('caroOnline'); });
 
   function startGame(size, win) {
     SIZE = size; WIN = win;
@@ -1236,6 +1234,8 @@ body {
   });
 
   document.getElementById('caroJoinBtn').addEventListener('click', function() { showCaroScreen('caroJoin'); });
+  document.getElementById('caroBackOnline').addEventListener('click', function() { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); });
+  document.getElementById('caroBackJoin').addEventListener('click', function() { showCaroScreen('caroOnline'); });
 
   document.getElementById('caroConnectBtn').addEventListener('click', function() {
     var code = document.getElementById('caroCodeInput').value.trim().toUpperCase();
