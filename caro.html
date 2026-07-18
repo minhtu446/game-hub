@@ -632,6 +632,13 @@ canvas.addEventListener('click', e => {
 
 // initial draw
 draw();
+
+// Listen for volume toggle from parent
+window.addEventListener('message', e => {
+  if (e.data && e.data.type === 'toggleSound') {
+    soundEnabled = e.data.enabled;
+  }
+});
 </script>
 </body>
 </html>

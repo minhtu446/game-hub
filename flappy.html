@@ -441,6 +441,14 @@ loadAssets().finally(() => {
   document.getElementById('loading').style.display = 'none';
   loop();
 });
+
+window.addEventListener('message', e => {
+  if (e.data && e.data.type === 'toggleSound') {
+    soundEnabled = e.data.enabled;
+    if (!soundEnabled) stopBGM();
+    else if (started && !gameOver) { initAudio(); playBGM(); }
+  }
+});
 </script>
 </body>
 </html>
