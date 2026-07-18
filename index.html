@@ -176,12 +176,18 @@ function closeGame() {
 function toggleVolume() {
   soundEnabled = !soundEnabled;
   document.getElementById('volBtn').textContent = soundEnabled ? '🔊' : '🔇';
-  // Send to active iframe
   try {
     const active = document.querySelector('.game-container.active iframe');
     if (active) active.contentWindow.postMessage({ type: 'toggleSound', enabled: soundEnabled }, '*');
   } catch(e) {}
 }
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'm' || e.key === 'M') {
+    const active = document.querySelector('.game-container.active');
+    if (active) { e.preventDefault(); toggleVolume(); }
+  }
+});
 </script>
 </body>
 </html>
