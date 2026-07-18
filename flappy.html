@@ -26,26 +26,7 @@ canvas {
   width: auto;
   height: auto;
 }
-#soundBtn {
-  position: fixed;
-  top: 16px;
-  right: 16px;
-  background: rgba(0,0,0,0.4);
-  border: 2px solid rgba(255,255,255,0.2);
-  border-radius: 4px;
-  width: 44px;
-  height: 44px;
-  font-size: 20px;
-  cursor: pointer;
-  color: #fff;
-  transition: background 0.2s;
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: monospace;
-}
-#soundBtn:hover { background: rgba(255,255,255,0.2); }
+
 #loading {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
@@ -63,12 +44,9 @@ canvas {
 <body>
 <div id="loading">Loading...</div>
 <canvas id="game"></canvas>
-<button id="soundBtn">🔊</button>
-
 <script>
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
-const soundBtn = document.getElementById('soundBtn');
 ctx.imageSmoothingEnabled = false;
 
 const W = 288, H = 512;
@@ -207,11 +185,9 @@ function playBGM() {
 
 function toggleSound() {
   soundEnabled = !soundEnabled;
-  soundBtn.textContent = soundEnabled ? '🔊' : '🔇';
   if (soundEnabled && started && !gameOver) { initAudio(); playBGM(); }
   else if (!soundEnabled) stopBGM();
 }
-soundBtn.addEventListener('click', toggleSound);
 
 // Game state
 function reset() {

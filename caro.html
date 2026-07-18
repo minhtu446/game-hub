@@ -54,14 +54,12 @@ canvas {
 </style>
 </head>
 <body>
-<div id="status">Đang suy nghĩ...</div>
 <canvas id="game"></canvas>
 
-
 <script>
+let statusText = 'Lượt của bạn (X)';
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
-const statusEl = document.getElementById('status');
 
 const SIZE = 30;
 const CELL = 22;
@@ -133,7 +131,7 @@ function initBoard() {
   gameOver = false;
   winner = null;
   thinking = false;
-  statusEl.textContent = 'Lượt của bạn (X)';
+  statusText = 'Lượt của bạn (X)';
 }
 
 initBoard();
@@ -168,13 +166,13 @@ function placeMove(r, c, player) {
   if (checkWin(r, c, player)) {
     gameOver = true;
     winner = player;
-    if (player === PLAYER) { statusEl.textContent = 'Bạn thắng! 🎉'; playWin(); }
-    else { statusEl.textContent = 'AI thắng! 🤖'; playLose(); }
+    if (player === PLAYER) { statusText = 'Bạn thắng!'; playWin(); }
+    else { statusText = 'AI thắng!'; playLose(); }
     return true;
   }
   if (isFull()) {
     gameOver = true;
-    statusEl.textContent = 'Hòa!';
+    statusText = 'Hòa!';
     playTone(440, 0.3, 'sine', 0.1);
     return true;
   }
@@ -420,7 +418,7 @@ function iterativeDeepening(timeLimitMs) {
 function aiMove() {
   if (gameOver || thinking) return;
   thinking = true;
-  statusEl.textContent = 'AI đang suy nghĩ...';
+  statusText = 'AI đang suy nghĩ...';
 
   setTimeout(() => {
     if (gameOver) { thinking = false; return; }
@@ -479,7 +477,7 @@ function aiMove() {
 function doneAI() {
   if (!gameOver) {
     currentPlayer = PLAYER;
-    statusEl.textContent = 'Lượt của bạn (X)';
+    statusText = 'Lượt của bạn (X)';
   }
   thinking = false;
   draw();
@@ -492,6 +490,14 @@ function draw() {
   // bg
   ctx.fillStyle = '#F5E6CA';
   ctx.fillRect(0, 0, W, H);
+
+  // status text on canvas
+  ctx.fillStyle = '#333';
+  ctx.font = 'bold 14px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillText(statusText, Math.floor(W/2), 4);
+  ctx.textBaseline = 'alphabetic';
 
   // border
   ctx.strokeStyle = '#C4A97D';
