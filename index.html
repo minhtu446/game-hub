@@ -1149,7 +1149,16 @@ body {
     if (gameOver) {
       const bx = Math.floor(W/2 - 70), by = Math.floor(H/2 + 80);
       if (mx >= bx && mx <= bx + 140 && my >= by && my <= by + 36) {
-        initGame(); draw(); return;
+        initGame();
+        if (Math.random() < 0.5) {
+          statusText = 'AI đi trước (O)...';
+          draw();
+          aiMove();
+        } else {
+          statusText = 'Lượt của bạn (X)';
+          draw();
+        }
+        return;
       }
       return;
     }
