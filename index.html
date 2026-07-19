@@ -640,7 +640,9 @@ var GameRelay = (function() {
     pub: function(topic, msg) {
       var key = Date.now() + '_' + Math.random().toString(36).substr(2, 6);
       fetch(FB_URL + '/games/' + topic + '/' + key + '.json', {
-        method: 'PUT', body: msg
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: msg
       }).catch(function() {});
     },
     startPoll: function(topic, onMsg) {
@@ -648,7 +650,7 @@ var GameRelay = (function() {
       if (pollTimers[topic]) clearInterval(pollTimers[topic]);
       pollTimers[topic] = setInterval(function() {
         var url = FB_URL + '/games/' + topic + '.json';
-        if (lastKeys[topic]) url += '?orderBy="$key"&startAt="' + lastKeys[topic] + '"';
+        if (lastKeys[topic]) url += '?orderBy=%22%24key%22&startAt=%22' + encodeURIComponent(lastKeys[topic]) + '%22';
         fetch(url).then(function(r) { return r.json(); }).then(function(data) {
           if (!data || typeof data !== 'object') return;
           var keys = Object.keys(data).sort();
