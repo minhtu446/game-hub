@@ -665,7 +665,7 @@ var GameRelay = (function() {
           });
           if (newLast) lastKeys[topic] = newLast;
         }).catch(function() {});
-      }, 500);
+      }, 200);
     },
     stopPoll: function(topic) {
       if (pollTimers[topic]) { clearInterval(pollTimers[topic]); delete pollTimers[topic]; }
