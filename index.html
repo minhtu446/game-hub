@@ -629,13 +629,16 @@ body {
 })();
 </script>
 
-<!-- MQTT Game Relay (WebSocket, works in all browsers including Discord WebView) -->
+<!-- MQTT Game Relay -->
 <script>
 var GameRelay = (function() {
   var BROKERS = [
     'wss://broker.hivemq.com:8884/mqtt',
     'wss://broker.emqx.io:8083/mqtt',
-    'wss://mqtt.eclipseprojects.io:443/mqtt'
+    'wss://mqtt.eclipseprojects.io:443/mqtt',
+    'wss://mqtt.eclipseprojects.io:8884/mqtt',
+    'wss://broker.hivemq.com:8000/mqtt',
+    'wss://mqtt.dioty.no:18884/mqtt'
   ];
   function encStr(s) {
     var b = new TextEncoder().encode(s);
@@ -648,6 +651,7 @@ var GameRelay = (function() {
     do { var b = len % 128; len >>= 7; if (len > 0) b |= 0x80; r.push(b); } while (len > 0);
     return r;
   }
+  function log(msg) { try { console.log('[Relay]', msg); } catch(e) {} }
   function createClient(url) {
     var ws, h = {}, pid = 0, buf = [];
     function send(type, vh, pl) {
@@ -664,7 +668,8 @@ var GameRelay = (function() {
         var end = pos + rl;
         if (buf.length < end) return;
         var d = buf.slice(pos, end); buf = buf.slice(end);
-        if (type === 2 && d[1] === 0 && h.ok) h.ok();
+        if (type === 2) { log('CONNACK rc=' + d[1]); if (d[1] === 0 && h.ok) h.ok(); }
+        else if (type === 13) { log('PINGRESP'); }
         else if (type === 3) {
           var tl = (d[0] << 8) | d[1];
           var topic = new TextDecoder().decode(new Uint8Array(d.slice(2, 2 + tl)));
@@ -676,16 +681,24 @@ var GameRelay = (function() {
     return {
       connect: function() {
         return new Promise(function(ok, fail) {
-          ws = new WebSocket(url);
-          ws.binaryType = 'arraybuffer';
+          log('Trying ' + url);
           var done = false;
-          h.ok = function() { if (!done) { done = true; ok(c); } };
+          var timer = setTimeout(function() {
+            if (!done) { done = true; try { ws.close(); } catch(e) {} fail(new Error('Timeout ' + url.split('/')[2])); }
+          }, 4000);
+          try { ws = new WebSocket(url); } catch(e) { clearTimeout(timer); fail(e); return; }
+          ws.binaryType = 'arraybuffer';
+          h.ok = function() { if (!done) { done = true; clearTimeout(timer); ok(c); } };
           ws.onopen = function() {
+            log('WS open: ' + url.split('/')[2]);
             var cid = 'cg' + Math.random().toString(36).substr(2, 8);
             send(0x10, [0,4,0x4D,0x51,0x54,0x54,4,2,0,60], encStr(cid));
           };
-          ws.onerror = function() { if (!done) { done = true; fail(new Error('WebSocket error')); } };
-          ws.onclose = function() { h._close && h._close(); };
+          ws.onerror = function(e) {
+            log('WS error: ' + url.split('/')[2]);
+            if (!done) { done = true; clearTimeout(timer); fail(new Error(url.split('/')[2] + ' error')); }
+          };
+          ws.onclose = function(e) { log('WS closed: ' + url.split('/')[2] + ' code=' + e.code); h._close && h._close(); };
           ws.onmessage = function(e) {
             buf = buf.concat(Array.from(new Uint8Array(e.data)));
             processBuf();
@@ -705,14 +718,21 @@ var GameRelay = (function() {
     connect: function() {
       return new Promise(function(ok, fail) {
         var idx = 0;
+        var errors = [];
         function tryNext() {
-          if (idx >= BROKERS.length) return fail(new Error('Không kết nối được relay nào'));
+          if (idx >= BROKERS.length) {
+            var msg = 'Không kết nối được relay nào.\n' + errors.join('\n');
+            fail(new Error(msg));
+            return;
+          }
           var url = BROKERS[idx++];
-          var c = createClient(url);
-          c.connect().then(function(client) {
+          createClient(url).connect().then(function(client) {
             client._ka = setInterval(function() { client.ping(); }, 25000);
             ok(client);
-          }).catch(tryNext);
+          }).catch(function(e) {
+            errors.push(url.split('/')[2] + ': ' + e.message);
+            tryNext();
+          });
         }
         tryNext();
       });
@@ -1304,9 +1324,12 @@ var GameRelay = (function() {
         }
       }, 45000);
     }).catch(function(e) {
-      document.getElementById('caroCodeDisplay').style.color = '#e53935';
-      document.getElementById('caroCodeDisplay').style.fontSize = '20px';
-      document.getElementById('caroCodeDisplay').textContent = 'Lỗi: ' + e.message;
+      var el = document.getElementById('caroCodeDisplay');
+      el.style.color = '#e53935';
+      el.style.fontSize = '14px';
+      el.style.whiteSpace = 'pre-line';
+      el.style.textAlign = 'left';
+      el.textContent = 'Lỗi: ' + e.message;
     });
   }
 
@@ -1357,6 +1380,7 @@ var GameRelay = (function() {
     }).catch(function(e) {
       document.getElementById('caroJoinError').style.display = '';
       document.getElementById('caroJoinError').style.color = '#e53935';
+      document.getElementById('caroJoinError').style.whiteSpace = 'pre-line';
       document.getElementById('caroJoinError').textContent = 'Lỗi: ' + e.message;
       resetJoinUI();
     });
