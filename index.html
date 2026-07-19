@@ -122,9 +122,7 @@ body {
   <button class="menu-btn" data-game="caroAI">
     Caro AI <span class="shortcut">C</span>
   </button>
-  <button class="menu-btn" data-game="caroOnline">
-    Đấu Online <span class="shortcut">O</span>
-  </button>
+
 </div>
 
 <div id="flappyContainer" class="game-container">
@@ -142,42 +140,12 @@ body {
           <button class="caro-size-btn" data-size="20" data-win="5">20x20<br><span style="font-size:14px;opacity:0.7">5 ô thắng</span></button>
         </div>
       </div>
-      <!-- Screen 2: Online menu -->
-      <div id="caroOnline" style="display:none">
-        <h2 style="color:#FFD54F;font-size:36px;margin-bottom:30px">Đấu Online</h2>
-        <div id="netStatus" style="margin-bottom:16px"></div>
-        <div style="display:flex;flex-wrap:wrap;gap:16px;justify-content:center">
-          <button class="caro-size-btn" id="caroCreateBtn">Tạo trận</button>
-          <button class="caro-size-btn" id="caroJoinBtn">Vào trận</button>
-        </div>
-        <div style="margin-top:24px"><button class="caro-size-btn" id="caroBackOnline" style="padding:12px 30px;font-size:16px">Quay lại</button></div>
-      </div>
-      <!-- Screen 4: Create match -->
-      <div id="caroCreate" style="display:none">
-        <h2 style="color:#FFD54F;font-size:36px;margin-bottom:20px">Tạo trận</h2>
-        <p style="color:#fff;font-size:18px;margin-bottom:8px">Mã trận của bạn:</p>
-        <p id="caroCodeDisplay" style="color:#FFD54F;font-size:48px;font-weight:bold;letter-spacing:8px;margin-bottom:20px"></p>
-        <p style="color:rgba(255,255,255,0.6);font-size:16px" id="caroWaitMsg">Đang chờ đối thủ kết nối...</p>
-        <p id="caroCreateStatus" style="color:#aaa;font-size:12px;margin-top:8px"></p>
-        <div style="margin-top:30px"><button class="caro-size-btn" id="caroCancelCreate" style="padding:12px 30px;font-size:16px">Hủy</button></div>
-      </div>
-      <!-- Screen 5: Join match -->
-      <div id="caroJoin" style="display:none">
-        <h2 style="color:#FFD54F;font-size:36px;margin-bottom:20px">Vào trận</h2>
-        <input id="caroCodeInput" type="text" placeholder="Nhập mã trận" style="padding:14px 20px;font-size:22px;border-radius:10px;border:2px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#fff;text-align:center;width:240px;letter-spacing:6px;text-transform:uppercase;font-weight:bold;outline:none;font-family:inherit">
-        <div style="margin-top:20px;display:flex;gap:12px;justify-content:center">
-          <button class="caro-size-btn" id="caroConnectBtn" style="padding:12px 30px;font-size:16px">Kết nối</button>
-          <button class="caro-size-btn" id="caroBackJoin" style="padding:12px 30px;font-size:16px">Quay lại</button>
-        </div>
-        <p id="caroJoinError" style="color:#e53935;font-size:14px;margin-top:12px;display:none"></p>
-        <p id="caroJoinStatus" style="color:#aaa;font-size:12px;margin-top:8px;display:none"></p>
-      </div>
     </div>
     <canvas id="caroCanvas" style="display:none"></canvas>
   </div>
 
 <div class="footer">
-  <span>Ph&iacute;m tắt: F Flappy &middot; C Caro AI &middot; O Đấu Online &middot; ESC Quay lại</span>
+  <span>Ph&iacute;m tắt: F Flappy &middot; C Caro AI &middot; ESC Quay lại</span>
 </div>
 
 <script>
@@ -197,12 +165,7 @@ body {
     } else {
       caroC.style.display = 'block';
       document.getElementById('caroMenu').style.display = '';
-      var showAI = name === 'caroAI';
-      document.getElementById('caroSizeS').style.display = showAI ? '' : 'none';
-      document.getElementById('caroOnline').style.display = showAI ? 'none' : '';
-      if (!showAI) GameRelay.testConnection();
-      document.getElementById('caroCreate').style.display = 'none';
-      document.getElementById('caroJoin').style.display = 'none';
+      document.getElementById('caroSizeS').style.display = '';
     }
     currentGame = name;
   }
@@ -215,9 +178,6 @@ body {
     window.postMessage({ type: 'closeGame' }, '*');
     document.getElementById('caroSizeS').style.display = '';
     document.getElementById('caroMenu').style.display = '';
-    document.getElementById('caroOnline').style.display = 'none';
-    document.getElementById('caroCreate').style.display = 'none';
-    document.getElementById('caroJoin').style.display = 'none';
     document.getElementById('caroCanvas').style.display = 'none';
   }
 
@@ -229,7 +189,6 @@ body {
     if (currentGame === null) {
       if (e.key === 'f' || e.key === 'F') { openGame('flappy'); e.preventDefault(); return; }
       if (e.key === 'c' || e.key === 'C') { openGame('caroAI'); e.preventDefault(); return; }
-      if (e.key === 'o' || e.key === 'O') { openGame('caroOnline'); e.preventDefault(); return; }
     }
     if (e.key === 'Escape') { closeGame(); e.preventDefault(); return; }
   });
@@ -633,108 +592,6 @@ body {
 })();
 </script>
 
-<!-- Firebase Realtime Database Relay (HTTP only - works everywhere) -->
-<script>
-var GameRelay = (function() {
-  var FB_URL = 'https://sv-multi-default-rtdb.asia-southeast1.firebasedatabase.app';
-  var pollTimers = {};
-  var lastKeys = {};
-  var statusEl = null;
-  var joinStatusEl = null;
-  var pubOk = 0, pubFail = 0, pollOk = 0, pollFail = 0;
-
-  function setStatus(text, color) {
-    statusEl = document.getElementById('netStatus');
-    if (statusEl) { statusEl.textContent = text; statusEl.style.color = color || '#aaa'; statusEl.style.fontSize = '13px'; }
-  }
-
-  function setJoinStatus(text, color) {
-    joinStatusEl = document.getElementById('caroJoinStatus');
-    if (joinStatusEl) { joinStatusEl.textContent = text; joinStatusEl.style.color = color || '#aaa'; joinStatusEl.style.display = ''; }
-  }
-
-  function updateJoinStats() {
-    setJoinStatus('Gửi: ' + pubOk + ' ok/' + pubFail + ' fail | Nhận: ' + pollOk + ' ok/' + pollFail + ' fail', pubFail > 0 || pollFail > 0 ? '#e53935' : '#aaa');
-  }
-
-  return {
-    testConnection: function() {
-      setStatus('Đang kiểm tra kết nối Firebase...', '#FFD54F');
-      var t0 = Date.now();
-      var testKey = '_test_' + Math.random().toString(36).substr(2,6);
-      fetch(FB_URL + '/games/' + testKey + '.json', {
-        method: 'PUT',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ts: Date.now()})
-      }).then(function(r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return fetch(FB_URL + '/games/' + testKey + '.json');
-      }).then(function(r) { return r.json(); }).then(function(d) {
-        var ms = Date.now() - t0;
-        setStatus('Firebase OK (' + ms + 'ms) - Sẵn sàng chơi!', '#4CAF50');
-        fetch(FB_URL + '/games/' + testKey + '.json', {method:'DELETE'});
-      }).catch(function(e) {
-        setStatus('Firebase bị chặn! Không thể chơi online. Lỗi: ' + e.message, '#e53935');
-        console.error('[Relay] TEST FAIL:', e.message);
-      });
-    },
-    pub: function(topic, msg) {
-      var key = Date.now() + '_' + Math.random().toString(36).substr(2, 6);
-      fetch(FB_URL + '/games/' + topic + '/' + key + '.json', {
-        method: 'PUT',
-        headers: {'Content-Type': 'application/json'},
-        body: msg
-      }).then(function(r) {
-        if (!r.ok) { pubFail++; updateJoinStats(); console.error('[Relay] PUB fail:', r.status, topic); }
-        else { pubOk++; updateJoinStats(); }
-      }).catch(function(e) {
-        pubFail++; updateJoinStats();
-        console.error('[Relay] PUB error:', e.message, topic);
-      });
-    },
-    startPoll: function(topic, onMsg) {
-      lastKeys[topic] = '';
-      if (pollTimers[topic]) clearInterval(pollTimers[topic]);
-      function doPoll() {
-        var url = FB_URL + '/games/' + topic + '.json';
-        if (lastKeys[topic]) url += '?orderBy=%22%24key%22&startAt=%22' + encodeURIComponent(lastKeys[topic]) + '%22';
-        fetch(url).then(function(r) {
-          if (!r.ok) { pollFail++; updateJoinStats(); console.error('[Relay] POLL fail:', r.status); return null; }
-          pollOk++; updateJoinStats();
-          return r.json();
-        }).then(function(data) {
-          if (!data || typeof data !== 'object') return;
-          var keys = Object.keys(data).sort();
-          var newLast = '';
-          keys.forEach(function(k) {
-            if (k > lastKeys[topic]) {
-              var raw = data[k];
-              if (typeof raw === 'string') onMsg(raw);
-              else if (raw) onMsg(JSON.stringify(raw));
-              newLast = k;
-            }
-          });
-          if (newLast) lastKeys[topic] = newLast;
-        }).catch(function(e) {
-          pollFail++; updateJoinStats();
-          console.error('[Relay] POLL error:', e.message);
-        });
-      }
-      doPoll();
-      pollTimers[topic] = setInterval(doPoll, 150);
-    },
-    stopPoll: function(topic) {
-      if (pollTimers[topic]) { clearInterval(pollTimers[topic]); delete pollTimers[topic]; }
-      delete lastKeys[topic];
-    },
-    resetStats: function() { pubOk = 0; pubFail = 0; pollOk = 0; pollFail = 0; updateJoinStats(); },
-    setJoinStatus: setJoinStatus,
-    deleteRoom: function(topic) {
-      fetch(FB_URL + '/games/' + topic + '.json', { method: 'DELETE' }).catch(function() {});
-    }
-  };
-})();
-</script>
 <script>
 (function() {
   let statusText = 'Lượt của bạn (X)';
@@ -751,78 +608,6 @@ var GameRelay = (function() {
   let thinking = false;
   let audioCtx = null;
   const EMPTY = 0, PLAYER = 1, AI = -1;
-
-  let isMultiplayer = false;
-  let myPlayerNum = 1;
-  let waitingForMove = false;
-  let gameStarted = false;
-
-  /* ---- Firebase Game Relay ---- */
-  var gameTopic = '', pingTimer = null, lastPong = 0;
-  let connectionTimer = null;
-
-  function resetJoinUI() {
-    var btn = document.getElementById('caroConnectBtn');
-    if (btn) { btn.textContent = 'Kết nối'; btn.disabled = false; }
-  }
-
-  function closeRelay() {
-    if (pingTimer) { clearInterval(pingTimer); pingTimer = null; }
-    if (gameTopic) { GameRelay.stopPoll(gameTopic); GameRelay.deleteRoom(gameTopic); }
-    gameTopic = '';
-  }
-
-  function initRelay(code) {
-    gameTopic = code;
-    GameRelay.startPoll(gameTopic, handleRelayMsg);
-    lastPong = Date.now();
-    pingTimer = setInterval(function() {
-      relayPub({t:'ping'});
-      if (Date.now() - lastPong > 15000 && isMultiplayer && !gameOver) {
-        statusText = 'Đối thủ mất kết nối!';
-        gameOver = true;
-        draw();
-      }
-    }, 5000);
-    return Promise.resolve();
-  }
-
-  function relayPub(msg) {
-    if (gameTopic) GameRelay.pub(gameTopic, typeof msg === 'string' ? msg : JSON.stringify(msg));
-  }
-
-  var relayMsgCount = 0;
-  function handleRelayMsg(raw) {
-    var data;
-    try { data = JSON.parse(raw); } catch(e) { return; }
-    relayMsgCount++;
-    if (data.t === 'ping') { relayPub({t:'pong'}); lastPong = Date.now(); return; }
-    if (data.t === 'pong') { lastPong = Date.now(); return; }
-    if (!isMultiplayer) return;
-    if (data.t === 'join' && myPlayerNum === 1 && !gameStarted) {
-      if (connectionTimer) { clearTimeout(connectionTimer); connectionTimer = null; }
-      document.getElementById('caroWaitMsg').textContent = 'Đối thủ đã kết nối! Bắt đầu...';
-      document.getElementById('caroWaitMsg').style.color = '#4CAF50';
-      gameStarted = true;
-      relayPub({t:'start'});
-      initMultiplayerGame();
-    } else if (data.t === 'start' && myPlayerNum === 2 && !gameStarted) {
-      if (connectionTimer) { clearTimeout(connectionTimer); connectionTimer = null; }
-      gameStarted = true;
-      initMultiplayerGame();
-    } else if (data.t === 'move' && data.r !== undefined && data.c !== undefined) {
-      multiplayerMove(data.r, data.c, data.p);
-    } else if (data.t === 'leave' && !gameOver) {
-      statusText = 'Đối thủ đã thoát!';
-      gameOver = true;
-      draw();
-    }
-  }
-
-  function showCaroScreen(id) {
-    document.querySelectorAll('#caroMenu > div').forEach(function(d) { d.style.display = 'none'; });
-    document.getElementById(id).style.display = '';
-  }
 
   function startGame(size, win) {
     SIZE = size; WIN = win;
@@ -841,7 +626,6 @@ var GameRelay = (function() {
   // AI size buttons
   document.querySelectorAll('#caroSizeS .caro-size-btn[data-size]').forEach(function(btn) {
     btn.addEventListener('click', function() {
-      isMultiplayer = false;
       startGame(parseInt(btn.getAttribute('data-size')), parseInt(btn.getAttribute('data-win')));
       if (Math.random() < 0.5) {
         statusText = 'AI đi trước (O)...';
@@ -943,13 +727,8 @@ var GameRelay = (function() {
     if (checkWin(r, c, player)) {
       gameOver = true;
       winner = player;
-      if (isMultiplayer) {
-        statusText = player === myPlayerNum ? 'Bạn thắng!' : 'Đối thủ thắng!';
-        if (player === myPlayerNum) playWin(); else playLose();
-      } else {
-        if (player === PLAYER) { statusText = 'Bạn thắng!'; playWin(); }
-        else { statusText = 'AI thắng!'; playLose(); }
-      }
+      if (player === PLAYER) { statusText = 'Bạn thắng!'; playWin(); }
+      else { statusText = 'AI thắng!'; playLose(); }
       return true;
     }
     if (isFull()) {
@@ -1259,134 +1038,6 @@ var GameRelay = (function() {
     draw();
   }
 
-  /* ---- Multiplayer ---- */
-  function multiplayerMove(r, c, player) {
-    const ended = placeMove(r, c, player);
-    draw();
-    if (!ended) {
-      waitingForMove = false;
-      currentPlayer = myPlayerNum;
-      statusText = 'Lượt của bạn (' + (myPlayerNum === 1 ? 'X' : 'O') + ')';
-      draw();
-    }
-  }
-
-  function initMultiplayerGame() {
-    SIZE = 20; WIN = 5;
-    CELL = SIZE <= 10 ? 48 : (SIZE <= 20 ? 28 : 22);
-    PADDING = 24;
-    BOARD = CELL * SIZE;
-    W = BOARD + PADDING * 2;
-    H = BOARD + PADDING * 2;
-    canvas.width = W;
-    canvas.height = H;
-    document.getElementById('caroMenu').style.display = 'none';
-    canvas.style.display = 'block';
-    initGame();
-
-    if (myPlayerNum === 1) {
-      waitingForMove = false;
-      currentPlayer = PLAYER;
-      statusText = 'Lượt của bạn (X) - Bạn đi trước';
-      draw();
-    } else {
-      waitingForMove = true;
-      currentPlayer = 0;
-      statusText = 'Chờ đối thủ đi (X)...';
-      draw();
-    }
-  }
-
-  function createRelayGame() {
-    var code = '';
-    var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    for (var i = 0; i < 10; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
-    document.getElementById('caroCodeDisplay').textContent = 'Đang kết nối...';
-    document.getElementById('caroWaitMsg').textContent = 'Đang gửi tin nhắn tới Firebase...';
-    document.getElementById('caroWaitMsg').style.color = '#FFD54F';
-    isMultiplayer = true;
-    myPlayerNum = 1;
-    initRelay(code).then(function() {
-      document.getElementById('caroCodeDisplay').textContent = code;
-      relayPub({t:'join'});
-      document.getElementById('caroWaitMsg').textContent = 'Mã: ' + code + ' - Đang chờ đối thủ...';
-      document.getElementById('caroWaitMsg').style.color = 'rgba(255,255,255,0.6)';
-      if (connectionTimer) clearTimeout(connectionTimer);
-      connectionTimer = setTimeout(function() {
-        if (!gameStarted && isMultiplayer && !gameOver) {
-          document.getElementById('caroWaitMsg').textContent = 'Không có ai kết nối. Hủy và thử lại!';
-          document.getElementById('caroWaitMsg').style.color = '#e53935';
-        }
-      }, 45000);
-    }).catch(function(e) {
-      document.getElementById('caroWaitMsg').textContent = 'Lỗi kết nối: ' + e.message;
-      document.getElementById('caroWaitMsg').style.color = '#e53935';
-    });
-  }
-
-  document.getElementById('caroCreateBtn').addEventListener('click', function() {
-    showCaroScreen('caroCreate');
-    createRelayGame();
-  });
-
-  document.getElementById('caroCancelCreate').addEventListener('click', function() {
-    relayPub({t:'leave'}); closeRelay();
-    if (connectionTimer) { clearTimeout(connectionTimer); connectionTimer = null; }
-    isMultiplayer = false; gameStarted = false;
-    showCaroScreen('caroOnline');
-  });
-
-  document.getElementById('caroJoinBtn').addEventListener('click', function() { showCaroScreen('caroJoin'); });
-  document.getElementById('caroBackOnline').addEventListener('click', function() { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); });
-  document.getElementById('caroBackJoin').addEventListener('click', function() {
-    if (connectionTimer) { clearTimeout(connectionTimer); connectionTimer = null; }
-    relayPub({t:'leave'}); closeRelay();
-    isMultiplayer = false; gameStarted = false;
-    resetJoinUI();
-    document.getElementById('caroJoinError').style.display = 'none';
-    showCaroScreen('caroOnline');
-  });
-
-  document.getElementById('caroConnectBtn').addEventListener('click', function() {
-    var code = document.getElementById('caroCodeInput').value.trim().toUpperCase();
-    if (!code) { document.getElementById('caroJoinError').style.display = ''; document.getElementById('caroJoinError').textContent = 'Nhập mã trận!'; return; }
-    document.getElementById('caroJoinError').style.display = 'none';
-    document.getElementById('caroJoinStatus').style.display = '';
-    isMultiplayer = true;
-    myPlayerNum = 2;
-    GameRelay.resetStats();
-    document.getElementById('caroConnectBtn').textContent = 'Đang kết nối...';
-    document.getElementById('caroConnectBtn').disabled = true;
-    document.getElementById('caroJoinError').style.display = '';
-    document.getElementById('caroJoinError').style.color = '#FFD54F';
-    document.getElementById('caroJoinError').textContent = 'Đang tìm đối thủ... (mã: ' + code + ')';
-    GameRelay.setJoinStatus('Đang khởi tạo relay...');
-    initRelay(code).then(function() {
-      relayPub({t:'join'});
-      GameRelay.setJoinStatus('Đã gửi join! Đang chờ phản hồi...');
-      if (connectionTimer) clearTimeout(connectionTimer);
-      connectionTimer = setTimeout(function() {
-        if (!gameStarted && isMultiplayer && !gameOver) {
-          document.getElementById('caroJoinError').style.color = '#e53935';
-          document.getElementById('caroJoinError').textContent = 'Không tìm thấy đối thủ. Thử lại!';
-          GameRelay.setJoinStatus('Hết thời gian chờ', '#e53935');
-          resetJoinUI();
-        }
-      }, 30000);
-    }).catch(function(e) {
-      document.getElementById('caroJoinError').style.display = '';
-      document.getElementById('caroJoinError').style.color = '#e53935';
-      document.getElementById('caroJoinError').style.whiteSpace = 'pre-line';
-      document.getElementById('caroJoinError').textContent = 'Lỗi: ' + e.message;
-      GameRelay.setJoinStatus('Lỗi: ' + e.message, '#e53935');
-      resetJoinUI();
-    });
-  });
-
-  document.getElementById('caroCodeInput').addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') document.getElementById('caroConnectBtn').click();
-  });
-
   function draw() {
     ctx.clearRect(0, 0, W, H);
 
@@ -1508,67 +1159,37 @@ var GameRelay = (function() {
     if (gameOver) {
       const bx = Math.floor(W/2 - 70), by = Math.floor(H/2 + 80);
       if (mx >= bx && mx <= bx + 140 && my >= by && my <= by + 36) {
-        if (isMultiplayer) {
-          relayPub({t:'leave'}); closeRelay(); isMultiplayer = false; gameStarted = false;
-          document.getElementById('caroMenu').style.display = '';
-          document.getElementById('caroCanvas').style.display = 'none';
-          showCaroScreen('caroOnline');
+        initGame();
+        if (Math.random() < 0.5) {
+          statusText = 'AI đi trước (O)...';
+          draw();
+          aiMove();
         } else {
-          initGame();
-          if (Math.random() < 0.5) {
-            statusText = 'AI đi trước (O)...';
-            draw();
-            aiMove();
-          } else {
-            statusText = 'Lượt của bạn (X)';
-            draw();
-          }
+          statusText = 'Lượt của bạn (X)';
+          draw();
         }
         return;
       }
       return;
     }
 
-    if (isMultiplayer) {
-      if (waitingForMove || currentPlayer !== myPlayerNum) return;
-    } else {
-      if (thinking || currentPlayer !== PLAYER) return;
-    }
+    if (thinking || currentPlayer !== PLAYER) return;
     const c = Math.floor((mx - PADDING) / CELL);
     const r = Math.floor((my - PADDING) / CELL);
     if (r < 0 || r >= SIZE || c < 0 || c >= SIZE) return;
     if (board[r][c] !== EMPTY) return;
 
-    if (isMultiplayer) {
-      const ended = placeMove(r, c, myPlayerNum);
-      draw();
-      if (!ended) {
-      relayPub({t:'move', r:r, c:c, p:myPlayerNum});
-        waitingForMove = true;
-        currentPlayer = 0;
-        statusText = 'Đang chờ đối thủ...';
-        draw();
-      }
-    } else {
-      const end = placeMove(r, c, PLAYER);
-      draw();
-      if (!end) {
-        currentPlayer = AI;
-        aiMove();
-      }
+    const end = placeMove(r, c, PLAYER);
+    draw();
+    if (!end) {
+      currentPlayer = AI;
+      aiMove();
     }
   });
 
   window.addEventListener('message', function(e) {
     if (e.data && e.data.type === 'toggleSound') {
       soundEnabled = e.data.enabled;
-    }
-  });
-
-  window.addEventListener('beforeunload', function() {
-    if (isMultiplayer && relay) {
-      relayPub({t:'leave'});
-      closeRelay();
     }
   });
 })();
