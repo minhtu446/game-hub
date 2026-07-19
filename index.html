@@ -629,62 +629,48 @@ body {
 })();
 </script>
 
-<!-- HTTP Game Relay (no WebSocket needed - works everywhere including Discord Activities) -->
+<!-- Firebase Realtime Database Relay (HTTP only - works everywhere) -->
 <script>
 var GameRelay = (function() {
-  var RELAY_URL = localStorage.getItem('relayUrl') || '';
+  var FB_URL = 'https://sv-multi-default-rtdb.asia-southeast1.firebasedatabase.app';
   var pollTimers = {};
-
-  function log(msg) { try { console.log('[Relay]', msg); } catch(e) {} }
+  var lastKeys = {};
 
   return {
-    setUrl: function(url) {
-      RELAY_URL = url.replace(/\/+$/, '');
-      localStorage.setItem('relayUrl', RELAY_URL);
+    pub: function(topic, msg) {
+      var key = Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+      fetch(FB_URL + '/games/' + topic + '/' + key + '.json', {
+        method: 'PUT', body: msg
+      }).catch(function() {});
     },
-    getUrl: function() { return RELAY_URL; },
-    connect: function() {
-      return new Promise(function(ok, fail) {
-        if (!RELAY_URL) {
-          var url = prompt('Nhập URL relay server (VD: https://my-relay.glitch.me):', RELAY_URL || '');
-          if (url) { GameRelay.setUrl(url); RELAY_URL = url.replace(/\/+$/, ''); }
-        }
-        if (!RELAY_URL) { fail(new Error('Chưa nhập URL relay')); return; }
-        log('Using relay: ' + RELAY_URL);
-        fetch(RELAY_URL + '/?room=test&since=0').then(function(r) {
-          if (!r.ok) throw new Error('Relay returned ' + r.status);
-          return r.json();
-        }).then(function() {
-          ok({
-            sub: function() {},
-            pub: function(topic, msg) {
-              fetch(RELAY_URL + '/?room=' + topic, { method: 'POST', body: msg }).catch(function() {});
-            },
-            ping: function() {},
-            close: function() {
-              Object.keys(pollTimers).forEach(function(k) { clearInterval(pollTimers[k]); delete pollTimers[k]; });
-            },
-            onClose: function() {},
-            startPoll: function(topic, since, onMsg) {
-              var idx = since || 0;
-              var id = topic;
-              if (pollTimers[id]) clearInterval(pollTimers[id]);
-              pollTimers[id] = setInterval(function() {
-                fetch(RELAY_URL + '/?room=' + topic + '&since=' + idx)
-                  .then(function(r) { return r.json(); })
-                  .then(function(data) {
-                    idx = data.n;
-                    if (data.m && data.m.length) {
-                      data.m.forEach(function(raw) { onMsg(raw); });
-                    }
-                  }).catch(function() {});
-              }, 500);
+    startPoll: function(topic, onMsg) {
+      lastKeys[topic] = '';
+      if (pollTimers[topic]) clearInterval(pollTimers[topic]);
+      pollTimers[topic] = setInterval(function() {
+        var url = FB_URL + '/games/' + topic + '.json';
+        if (lastKeys[topic]) url += '?orderBy="$key"&startAt="' + lastKeys[topic] + '"';
+        fetch(url).then(function(r) { return r.json(); }).then(function(data) {
+          if (!data || typeof data !== 'object') return;
+          var keys = Object.keys(data).sort();
+          var newLast = '';
+          keys.forEach(function(k) {
+            if (k > lastKeys[topic]) {
+              var raw = data[k];
+              if (typeof raw === 'string') onMsg(raw);
+              else if (raw) onMsg(JSON.stringify(raw));
+              newLast = k;
             }
           });
-        }).catch(function(e) {
-          fail(new Error('Không kết nối được relay: ' + e.message));
-        });
-      });
+          if (newLast) lastKeys[topic] = newLast;
+        }).catch(function() {});
+      }, 500);
+    },
+    stopPoll: function(topic) {
+      if (pollTimers[topic]) { clearInterval(pollTimers[topic]); delete pollTimers[topic]; }
+      delete lastKeys[topic];
+    },
+    deleteRoom: function(topic) {
+      fetch(FB_URL + '/games/' + topic + '.json', { method: 'DELETE' }).catch(function() {});
     }
   };
 })();
@@ -711,8 +697,8 @@ var GameRelay = (function() {
   let waitingForMove = false;
   let gameStarted = false;
 
-  /* ---- HTTP Game Relay ---- */
-  var relay = null, gameTopic = '', pingTimer = null, lastPong = 0;
+  /* ---- Firebase Game Relay ---- */
+  var gameTopic = '', pingTimer = null, lastPong = 0;
   let connectionTimer = null;
 
   function resetJoinUI() {
@@ -721,31 +707,28 @@ var GameRelay = (function() {
   }
 
   function closeRelay() {
-    if (relay) { try { relay.close(); } catch(e) {} relay = null; }
     if (pingTimer) { clearInterval(pingTimer); pingTimer = null; }
+    if (gameTopic) { GameRelay.stopPoll(gameTopic); GameRelay.deleteRoom(gameTopic); }
     gameTopic = '';
   }
 
   function initRelay(code) {
     gameTopic = code;
-    return GameRelay.connect().then(function(client) {
-      relay = client;
-      relay.startPoll(gameTopic, 0, handleRelayMsg);
-      lastPong = Date.now();
-      pingTimer = setInterval(function() {
-        if (relay) relay.pub(gameTopic, JSON.stringify({t:'ping'}));
-        if (Date.now() - lastPong > 15000 && isMultiplayer && !gameOver) {
-          statusText = 'Đối thủ mất kết nối!';
-          gameOver = true;
-          draw();
-        }
-      }, 5000);
-      return relay;
-    });
+    GameRelay.startPoll(gameTopic, handleRelayMsg);
+    lastPong = Date.now();
+    pingTimer = setInterval(function() {
+      relayPub({t:'ping'});
+      if (Date.now() - lastPong > 15000 && isMultiplayer && !gameOver) {
+        statusText = 'Đối thủ mất kết nối!';
+        gameOver = true;
+        draw();
+      }
+    }, 5000);
+    return Promise.resolve();
   }
 
   function relayPub(msg) {
-    if (relay && gameTopic) relay.pub(gameTopic, typeof msg === 'string' ? msg : JSON.stringify(msg));
+    if (gameTopic) GameRelay.pub(gameTopic, typeof msg === 'string' ? msg : JSON.stringify(msg));
   }
 
   function handleRelayMsg(raw) {
@@ -1251,7 +1234,9 @@ var GameRelay = (function() {
   }
 
   function createRelayGame() {
-    var code = Math.random().toString(36).substring(2, 8).toUpperCase();
+    var code = '';
+    var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    for (var i = 0; i < 10; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
     document.getElementById('caroCodeDisplay').textContent = 'Đang kết nối...';
     isMultiplayer = true;
     myPlayerNum = 1;
@@ -1264,13 +1249,6 @@ var GameRelay = (function() {
           document.getElementById('caroWaitMsg').style.color = '#e53935';
         }
       }, 45000);
-    }).catch(function(e) {
-      var el = document.getElementById('caroCodeDisplay');
-      el.style.color = '#e53935';
-      el.style.fontSize = '14px';
-      el.style.whiteSpace = 'pre-line';
-      el.style.textAlign = 'left';
-      el.textContent = 'Lỗi: ' + e.message;
     });
   }
 
