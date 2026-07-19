@@ -629,112 +629,61 @@ body {
 })();
 </script>
 
-<!-- MQTT Game Relay -->
+<!-- HTTP Game Relay (no WebSocket needed - works everywhere including Discord Activities) -->
 <script>
 var GameRelay = (function() {
-  var BROKERS = [
-    'wss://broker.hivemq.com:8884/mqtt',
-    'wss://broker.emqx.io:8083/mqtt',
-    'wss://mqtt.eclipseprojects.io:443/mqtt',
-    'wss://mqtt.eclipseprojects.io:8884/mqtt',
-    'wss://broker.hivemq.com:8000/mqtt',
-    'wss://mqtt.dioty.no:18884/mqtt'
-  ];
-  function encStr(s) {
-    var b = new TextEncoder().encode(s);
-    var r = new Uint8Array(b.length + 2);
-    r[0] = (b.length >> 8) & 0xff; r[1] = b.length & 0xff; r.set(b, 2);
-    return Array.from(r);
-  }
-  function encRemLen(len) {
-    var r = [];
-    do { var b = len % 128; len >>= 7; if (len > 0) b |= 0x80; r.push(b); } while (len > 0);
-    return r;
-  }
+  var RELAY_URL = localStorage.getItem('relayUrl') || '';
+  var pollTimers = {};
+
   function log(msg) { try { console.log('[Relay]', msg); } catch(e) {} }
-  function createClient(url) {
-    var ws, h = {}, pid = 0, buf = [];
-    function send(type, vh, pl) {
-      vh = vh || []; pl = pl || [];
-      ws.send(new Uint8Array([type].concat(encRemLen(vh.length + pl.length)).concat(vh).concat(pl)));
-    }
-    function processBuf() {
-      while (buf.length > 0) {
-        var type = buf[0] >> 4, pos = 1, ml = 1, rl = 0;
-        while (pos < buf.length) {
-          var by = buf[pos++]; rl += (by & 0x7f) * ml; ml *= 128;
-          if ((by & 0x80) === 0) break;
-        }
-        var end = pos + rl;
-        if (buf.length < end) return;
-        var d = buf.slice(pos, end); buf = buf.slice(end);
-        if (type === 2) { log('CONNACK rc=' + d[1]); if (d[1] === 0 && h.ok) h.ok(); }
-        else if (type === 13) { log('PINGRESP'); }
-        else if (type === 3) {
-          var tl = (d[0] << 8) | d[1];
-          var topic = new TextDecoder().decode(new Uint8Array(d.slice(2, 2 + tl)));
-          var msg = new TextDecoder().decode(new Uint8Array(d.slice(2 + tl)));
-          if (h['t' + topic]) h['t' + topic](msg);
-        }
-      }
-    }
-    return {
-      connect: function() {
-        return new Promise(function(ok, fail) {
-          log('Trying ' + url);
-          var done = false;
-          var timer = setTimeout(function() {
-            if (!done) { done = true; try { ws.close(); } catch(e) {} fail(new Error('Timeout ' + url.split('/')[2])); }
-          }, 4000);
-          try { ws = new WebSocket(url); } catch(e) { clearTimeout(timer); fail(e); return; }
-          ws.binaryType = 'arraybuffer';
-          h.ok = function() { if (!done) { done = true; clearTimeout(timer); ok(c); } };
-          ws.onopen = function() {
-            log('WS open: ' + url.split('/')[2]);
-            var cid = 'cg' + Math.random().toString(36).substr(2, 8);
-            send(0x10, [0,4,0x4D,0x51,0x54,0x54,4,2,0,60], encStr(cid));
-          };
-          ws.onerror = function(e) {
-            log('WS error: ' + url.split('/')[2]);
-            if (!done) { done = true; clearTimeout(timer); fail(new Error(url.split('/')[2] + ' error')); }
-          };
-          ws.onclose = function(e) { log('WS closed: ' + url.split('/')[2] + ' code=' + e.code); h._close && h._close(); };
-          ws.onmessage = function(e) {
-            buf = buf.concat(Array.from(new Uint8Array(e.data)));
-            processBuf();
-          };
-          var c = {
-            sub: function(topic, cb) { pid++; h['t' + topic] = cb; send(0x82, [(pid>>8)&0xff, pid&0xff], encStr(topic).concat([0])); },
-            pub: function(topic, msg) { send(0x30, encStr(topic), Array.from(new TextEncoder().encode(msg))); },
-            ping: function() { try { send(0xC0, []); } catch(e) {} },
-            close: function() { try { ws.close(); } catch(e) {} },
-            onClose: function(cb) { h._close = cb; }
-          };
-        });
-      }
-    };
-  }
+
   return {
+    setUrl: function(url) {
+      RELAY_URL = url.replace(/\/+$/, '');
+      localStorage.setItem('relayUrl', RELAY_URL);
+    },
+    getUrl: function() { return RELAY_URL; },
     connect: function() {
       return new Promise(function(ok, fail) {
-        var idx = 0;
-        var errors = [];
-        function tryNext() {
-          if (idx >= BROKERS.length) {
-            var msg = 'Không kết nối được relay nào.\n' + errors.join('\n');
-            fail(new Error(msg));
-            return;
-          }
-          var url = BROKERS[idx++];
-          createClient(url).connect().then(function(client) {
-            client._ka = setInterval(function() { client.ping(); }, 25000);
-            ok(client);
-          }).catch(function(e) {
-            errors.push(url.split('/')[2] + ': ' + e.message);
-            tryNext();
-          });
+        if (!RELAY_URL) {
+          var url = prompt('Nhập URL relay server (VD: https://my-relay.glitch.me):', RELAY_URL || '');
+          if (url) { GameRelay.setUrl(url); RELAY_URL = url.replace(/\/+$/, ''); }
         }
-        tryNext();
+        if (!RELAY_URL) { fail(new Error('Chưa nhập URL relay')); return; }
+        log('Using relay: ' + RELAY_URL);
+        fetch(RELAY_URL + '/?room=test&since=0').then(function(r) {
+          if (!r.ok) throw new Error('Relay returned ' + r.status);
+          return r.json();
+        }).then(function() {
+          ok({
+            sub: function() {},
+            pub: function(topic, msg) {
+              fetch(RELAY_URL + '/?room=' + topic, { method: 'POST', body: msg }).catch(function() {});
+            },
+            ping: function() {},
+            close: function() {
+              Object.keys(pollTimers).forEach(function(k) { clearInterval(pollTimers[k]); delete pollTimers[k]; });
+            },
+            onClose: function() {},
+            startPoll: function(topic, since, onMsg) {
+              var idx = since || 0;
+              var id = topic;
+              if (pollTimers[id]) clearInterval(pollTimers[id]);
+              pollTimers[id] = setInterval(function() {
+                fetch(RELAY_URL + '/?room=' + topic + '&since=' + idx)
+                  .then(function(r) { return r.json(); })
+                  .then(function(data) {
+                    idx = data.n;
+                    if (data.m && data.m.length) {
+                      data.m.forEach(function(raw) { onMsg(raw); });
+                    }
+                  }).catch(function() {});
+              }, 500);
+            }
+          });
+        }).catch(function(e) {
+          fail(new Error('Không kết nối được relay: ' + e.message));
+        });
       });
     }
   };
@@ -762,7 +711,7 @@ var GameRelay = (function() {
   let waitingForMove = false;
   let gameStarted = false;
 
-  /* ---- MQTT Game Relay ---- */
+  /* ---- HTTP Game Relay ---- */
   var relay = null, gameTopic = '', pingTimer = null, lastPong = 0;
   let connectionTimer = null;
 
@@ -778,18 +727,10 @@ var GameRelay = (function() {
   }
 
   function initRelay(code) {
-    gameTopic = 'caro/' + code;
+    gameTopic = code;
     return GameRelay.connect().then(function(client) {
       relay = client;
-      relay.onClose(function() {
-        if (isMultiplayer && !gameOver && relay) {
-          statusText = 'Mất kết nối!';
-          gameOver = true;
-          draw();
-        }
-        relay = null;
-      });
-      relay.sub(gameTopic, handleRelayMsg);
+      relay.startPoll(gameTopic, 0, handleRelayMsg);
       lastPong = Date.now();
       pingTimer = setInterval(function() {
         if (relay) relay.pub(gameTopic, JSON.stringify({t:'ping'}));
