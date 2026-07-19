@@ -664,7 +664,7 @@ var GameRelay = (function() {
         var end = pos + rl;
         if (buf.length < end) return;
         var d = buf.slice(pos, end); buf = buf.slice(end);
-        if (type === 4 && d[1] === 0 && h.ok) h.ok();
+        if (type === 2 && d[1] === 0 && h.ok) h.ok();
         else if (type === 3) {
           var tl = (d[0] << 8) | d[1];
           var topic = new TextDecoder().decode(new Uint8Array(d.slice(2, 2 + tl)));
