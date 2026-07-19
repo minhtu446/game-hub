@@ -643,15 +643,22 @@ var GameRelay = (function() {
         method: 'PUT',
         headers: {'Content-Type': 'application/json'},
         body: msg
-      }).catch(function() {});
+      }).then(function(r) {
+        if (!r.ok) console.error('[Relay] PUB fail:', r.status, topic);
+      }).catch(function(e) {
+        console.error('[Relay] PUB error:', e.message, topic);
+      });
     },
     startPoll: function(topic, onMsg) {
       lastKeys[topic] = '';
       if (pollTimers[topic]) clearInterval(pollTimers[topic]);
-      pollTimers[topic] = setInterval(function() {
+      function doPoll() {
         var url = FB_URL + '/games/' + topic + '.json';
         if (lastKeys[topic]) url += '?orderBy=%22%24key%22&startAt=%22' + encodeURIComponent(lastKeys[topic]) + '%22';
-        fetch(url).then(function(r) { return r.json(); }).then(function(data) {
+        fetch(url).then(function(r) {
+          if (!r.ok) { console.error('[Relay] POLL fail:', r.status); return null; }
+          return r.json();
+        }).then(function(data) {
           if (!data || typeof data !== 'object') return;
           var keys = Object.keys(data).sort();
           var newLast = '';
@@ -664,8 +671,12 @@ var GameRelay = (function() {
             }
           });
           if (newLast) lastKeys[topic] = newLast;
-        }).catch(function() {});
-      }, 200);
+        }).catch(function(e) {
+          console.error('[Relay] POLL error:', e.message);
+        });
+      }
+      doPoll();
+      pollTimers[topic] = setInterval(doPoll, 150);
     },
     stopPoll: function(topic) {
       if (pollTimers[topic]) { clearInterval(pollTimers[topic]); delete pollTimers[topic]; }
