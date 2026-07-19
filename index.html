@@ -145,6 +145,7 @@ body {
       <!-- Screen 2: Online menu -->
       <div id="caroOnline" style="display:none">
         <h2 style="color:#FFD54F;font-size:36px;margin-bottom:30px">Đấu Online</h2>
+        <div id="netStatus" style="margin-bottom:16px"></div>
         <div style="display:flex;flex-wrap:wrap;gap:16px;justify-content:center">
           <button class="caro-size-btn" id="caroCreateBtn">Tạo trận</button>
           <button class="caro-size-btn" id="caroJoinBtn">Vào trận</button>
@@ -157,6 +158,7 @@ body {
         <p style="color:#fff;font-size:18px;margin-bottom:8px">Mã trận của bạn:</p>
         <p id="caroCodeDisplay" style="color:#FFD54F;font-size:48px;font-weight:bold;letter-spacing:8px;margin-bottom:20px"></p>
         <p style="color:rgba(255,255,255,0.6);font-size:16px" id="caroWaitMsg">Đang chờ đối thủ kết nối...</p>
+        <p id="caroCreateStatus" style="color:#aaa;font-size:12px;margin-top:8px"></p>
         <div style="margin-top:30px"><button class="caro-size-btn" id="caroCancelCreate" style="padding:12px 30px;font-size:16px">Hủy</button></div>
       </div>
       <!-- Screen 5: Join match -->
@@ -168,6 +170,7 @@ body {
           <button class="caro-size-btn" id="caroBackJoin" style="padding:12px 30px;font-size:16px">Quay lại</button>
         </div>
         <p id="caroJoinError" style="color:#e53935;font-size:14px;margin-top:12px;display:none"></p>
+        <p id="caroJoinStatus" style="color:#aaa;font-size:12px;margin-top:8px;display:none"></p>
       </div>
     </div>
     <canvas id="caroCanvas" style="display:none"></canvas>
@@ -197,6 +200,7 @@ body {
       var showAI = name === 'caroAI';
       document.getElementById('caroSizeS').style.display = showAI ? '' : 'none';
       document.getElementById('caroOnline').style.display = showAI ? 'none' : '';
+      if (!showAI) GameRelay.testConnection();
       document.getElementById('caroCreate').style.display = 'none';
       document.getElementById('caroJoin').style.display = 'none';
     }
@@ -635,8 +639,45 @@ var GameRelay = (function() {
   var FB_URL = 'https://sv-multi-default-rtdb.asia-southeast1.firebasedatabase.app';
   var pollTimers = {};
   var lastKeys = {};
+  var statusEl = null;
+  var joinStatusEl = null;
+  var pubOk = 0, pubFail = 0, pollOk = 0, pollFail = 0;
+
+  function setStatus(text, color) {
+    statusEl = document.getElementById('netStatus');
+    if (statusEl) { statusEl.textContent = text; statusEl.style.color = color || '#aaa'; statusEl.style.fontSize = '13px'; }
+  }
+
+  function setJoinStatus(text, color) {
+    joinStatusEl = document.getElementById('caroJoinStatus');
+    if (joinStatusEl) { joinStatusEl.textContent = text; joinStatusEl.style.color = color || '#aaa'; joinStatusEl.style.display = ''; }
+  }
+
+  function updateJoinStats() {
+    setJoinStatus('Gửi: ' + pubOk + ' ok/' + pubFail + ' fail | Nhận: ' + pollOk + ' ok/' + pollFail + ' fail', pubFail > 0 || pollFail > 0 ? '#e53935' : '#aaa');
+  }
 
   return {
+    testConnection: function() {
+      setStatus('Đang kiểm tra kết nối Firebase...', '#FFD54F');
+      var t0 = Date.now();
+      var testKey = '_test_' + Math.random().toString(36).substr(2,6);
+      fetch(FB_URL + '/games/' + testKey + '.json', {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ts: Date.now()})
+      }).then(function(r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return fetch(FB_URL + '/games/' + testKey + '.json');
+      }).then(function(r) { return r.json(); }).then(function(d) {
+        var ms = Date.now() - t0;
+        setStatus('Firebase OK (' + ms + 'ms) - Sẵn sàng chơi!', '#4CAF50');
+        fetch(FB_URL + '/games/' + testKey + '.json', {method:'DELETE'});
+      }).catch(function(e) {
+        setStatus('Firebase bị chặn! Không thể chơi online. Lỗi: ' + e.message, '#e53935');
+        console.error('[Relay] TEST FAIL:', e.message);
+      });
+    },
     pub: function(topic, msg) {
       var key = Date.now() + '_' + Math.random().toString(36).substr(2, 6);
       fetch(FB_URL + '/games/' + topic + '/' + key + '.json', {
@@ -644,8 +685,10 @@ var GameRelay = (function() {
         headers: {'Content-Type': 'application/json'},
         body: msg
       }).then(function(r) {
-        if (!r.ok) console.error('[Relay] PUB fail:', r.status, topic);
+        if (!r.ok) { pubFail++; updateJoinStats(); console.error('[Relay] PUB fail:', r.status, topic); }
+        else { pubOk++; updateJoinStats(); }
       }).catch(function(e) {
+        pubFail++; updateJoinStats();
         console.error('[Relay] PUB error:', e.message, topic);
       });
     },
@@ -656,7 +699,8 @@ var GameRelay = (function() {
         var url = FB_URL + '/games/' + topic + '.json';
         if (lastKeys[topic]) url += '?orderBy=%22%24key%22&startAt=%22' + encodeURIComponent(lastKeys[topic]) + '%22';
         fetch(url).then(function(r) {
-          if (!r.ok) { console.error('[Relay] POLL fail:', r.status); return null; }
+          if (!r.ok) { pollFail++; updateJoinStats(); console.error('[Relay] POLL fail:', r.status); return null; }
+          pollOk++; updateJoinStats();
           return r.json();
         }).then(function(data) {
           if (!data || typeof data !== 'object') return;
@@ -672,6 +716,7 @@ var GameRelay = (function() {
           });
           if (newLast) lastKeys[topic] = newLast;
         }).catch(function(e) {
+          pollFail++; updateJoinStats();
           console.error('[Relay] POLL error:', e.message);
         });
       }
@@ -682,6 +727,8 @@ var GameRelay = (function() {
       if (pollTimers[topic]) { clearInterval(pollTimers[topic]); delete pollTimers[topic]; }
       delete lastKeys[topic];
     },
+    resetStats: function() { pubOk = 0; pubFail = 0; pollOk = 0; pollFail = 0; updateJoinStats(); },
+    setJoinStatus: setJoinStatus,
     deleteRoom: function(topic) {
       fetch(FB_URL + '/games/' + topic + '.json', { method: 'DELETE' }).catch(function() {});
     }
@@ -744,14 +791,18 @@ var GameRelay = (function() {
     if (gameTopic) GameRelay.pub(gameTopic, typeof msg === 'string' ? msg : JSON.stringify(msg));
   }
 
+  var relayMsgCount = 0;
   function handleRelayMsg(raw) {
     var data;
     try { data = JSON.parse(raw); } catch(e) { return; }
+    relayMsgCount++;
     if (data.t === 'ping') { relayPub({t:'pong'}); lastPong = Date.now(); return; }
     if (data.t === 'pong') { lastPong = Date.now(); return; }
     if (!isMultiplayer) return;
     if (data.t === 'join' && myPlayerNum === 1 && !gameStarted) {
       if (connectionTimer) { clearTimeout(connectionTimer); connectionTimer = null; }
+      document.getElementById('caroWaitMsg').textContent = 'Đối thủ đã kết nối! Bắt đầu...';
+      document.getElementById('caroWaitMsg').style.color = '#4CAF50';
       gameStarted = true;
       relayPub({t:'start'});
       initMultiplayerGame();
@@ -1251,10 +1302,15 @@ var GameRelay = (function() {
     var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     for (var i = 0; i < 10; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
     document.getElementById('caroCodeDisplay').textContent = 'Đang kết nối...';
+    document.getElementById('caroWaitMsg').textContent = 'Đang gửi tin nhắn tới Firebase...';
+    document.getElementById('caroWaitMsg').style.color = '#FFD54F';
     isMultiplayer = true;
     myPlayerNum = 1;
     initRelay(code).then(function() {
       document.getElementById('caroCodeDisplay').textContent = code;
+      relayPub({t:'join'});
+      document.getElementById('caroWaitMsg').textContent = 'Mã: ' + code + ' - Đang chờ đối thủ...';
+      document.getElementById('caroWaitMsg').style.color = 'rgba(255,255,255,0.6)';
       if (connectionTimer) clearTimeout(connectionTimer);
       connectionTimer = setTimeout(function() {
         if (!gameStarted && isMultiplayer && !gameOver) {
@@ -1262,6 +1318,9 @@ var GameRelay = (function() {
           document.getElementById('caroWaitMsg').style.color = '#e53935';
         }
       }, 45000);
+    }).catch(function(e) {
+      document.getElementById('caroWaitMsg').textContent = 'Lỗi kết nối: ' + e.message;
+      document.getElementById('caroWaitMsg').style.color = '#e53935';
     });
   }
 
@@ -1292,20 +1351,25 @@ var GameRelay = (function() {
     var code = document.getElementById('caroCodeInput').value.trim().toUpperCase();
     if (!code) { document.getElementById('caroJoinError').style.display = ''; document.getElementById('caroJoinError').textContent = 'Nhập mã trận!'; return; }
     document.getElementById('caroJoinError').style.display = 'none';
+    document.getElementById('caroJoinStatus').style.display = '';
     isMultiplayer = true;
     myPlayerNum = 2;
+    GameRelay.resetStats();
     document.getElementById('caroConnectBtn').textContent = 'Đang kết nối...';
     document.getElementById('caroConnectBtn').disabled = true;
     document.getElementById('caroJoinError').style.display = '';
     document.getElementById('caroJoinError').style.color = '#FFD54F';
     document.getElementById('caroJoinError').textContent = 'Đang tìm đối thủ... (mã: ' + code + ')';
+    GameRelay.setJoinStatus('Đang khởi tạo relay...');
     initRelay(code).then(function() {
       relayPub({t:'join'});
+      GameRelay.setJoinStatus('Đã gửi join! Đang chờ phản hồi...');
       if (connectionTimer) clearTimeout(connectionTimer);
       connectionTimer = setTimeout(function() {
         if (!gameStarted && isMultiplayer && !gameOver) {
           document.getElementById('caroJoinError').style.color = '#e53935';
           document.getElementById('caroJoinError').textContent = 'Không tìm thấy đối thủ. Thử lại!';
+          GameRelay.setJoinStatus('Hết thời gian chờ', '#e53935');
           resetJoinUI();
         }
       }, 30000);
@@ -1314,6 +1378,7 @@ var GameRelay = (function() {
       document.getElementById('caroJoinError').style.color = '#e53935';
       document.getElementById('caroJoinError').style.whiteSpace = 'pre-line';
       document.getElementById('caroJoinError').textContent = 'Lỗi: ' + e.message;
+      GameRelay.setJoinStatus('Lỗi: ' + e.message, '#e53935');
       resetJoinUI();
     });
   });
