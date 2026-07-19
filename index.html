@@ -655,6 +655,12 @@ body {
 
   /* ---- Trystero (P2P) ---- */
   let room = null, moveAction = null, startAction = null;
+  let connectionTimer = null;
+
+  function resetJoinUI() {
+    var btn = document.getElementById('caroConnectBtn');
+    if (btn) { btn.textContent = 'Kết nối'; btn.disabled = false; }
+  }
 
   function initTrystero(code) {
     const {joinRoom} = Trystero || window.Trystero;
@@ -669,6 +675,7 @@ body {
     startAction.onMessage = (data, {peerId}) => {
       if (!gameStarted && data.yourNum) {
         gameStarted = true;
+        if (connectionTimer) { clearTimeout(connectionTimer); connectionTimer = null; }
         myPlayerNum = data.yourNum;
         initMultiplayerGame();
       }
@@ -1165,10 +1172,19 @@ body {
     var code = Math.random().toString(36).substring(2, 8).toUpperCase();
     document.getElementById('caroCodeDisplay').textContent = 'Đang kết nối...';
     try {
+      isMultiplayer = true;
       initTrystero(code);
       document.getElementById('caroCodeDisplay').textContent = code;
+      if (connectionTimer) clearTimeout(connectionTimer);
+      connectionTimer = setTimeout(function() {
+        if (!gameStarted && isMultiplayer && !gameOver) {
+          document.getElementById('caroWaitMsg').textContent = 'Không có ai kết nối. Hủy và thử lại!';
+          document.getElementById('caroWaitMsg').style.color = '#e53935';
+        }
+      }, 45000);
       room.onPeerJoin = function(peerId) {
         if (!gameStarted) {
+          if (connectionTimer) { clearTimeout(connectionTimer); connectionTimer = null; }
           gameStarted = true;
           myPlayerNum = 1;
           trysteroSendStart({yourNum: 2}, peerId);
@@ -1194,13 +1210,21 @@ body {
 
   document.getElementById('caroCancelCreate').addEventListener('click', function() {
     room = null; moveAction = null; startAction = null;
+    if (connectionTimer) { clearTimeout(connectionTimer); connectionTimer = null; }
     isMultiplayer = false; gameStarted = false;
     showCaroScreen('caroOnline');
   });
 
   document.getElementById('caroJoinBtn').addEventListener('click', function() { showCaroScreen('caroJoin'); });
   document.getElementById('caroBackOnline').addEventListener('click', function() { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); });
-  document.getElementById('caroBackJoin').addEventListener('click', function() { showCaroScreen('caroOnline'); });
+  document.getElementById('caroBackJoin').addEventListener('click', function() {
+    if (connectionTimer) { clearTimeout(connectionTimer); connectionTimer = null; }
+    room = null; moveAction = null; startAction = null;
+    isMultiplayer = false; gameStarted = false;
+    resetJoinUI();
+    document.getElementById('caroJoinError').style.display = 'none';
+    showCaroScreen('caroOnline');
+  });
 
   document.getElementById('caroConnectBtn').addEventListener('click', function() {
     var code = document.getElementById('caroCodeInput').value.trim().toUpperCase();
@@ -1209,6 +1233,19 @@ body {
     try {
       initTrystero(code);
       isMultiplayer = true;
+      document.getElementById('caroConnectBtn').textContent = 'Đang kết nối...';
+      document.getElementById('caroConnectBtn').disabled = true;
+      document.getElementById('caroJoinError').style.display = '';
+      document.getElementById('caroJoinError').style.color = '#FFD54F';
+      document.getElementById('caroJoinError').textContent = 'Đang tìm đối thủ... (mã: ' + code + ')';
+      if (connectionTimer) clearTimeout(connectionTimer);
+      connectionTimer = setTimeout(function() {
+        if (!gameStarted && isMultiplayer && !gameOver) {
+          document.getElementById('caroJoinError').style.color = '#e53935';
+          document.getElementById('caroJoinError').textContent = 'Không tìm thấy đối thủ. Thử lại!';
+          resetJoinUI();
+        }
+      }, 30000);
       room.onPeerLeave = function(peerId) {
         if (isMultiplayer && !gameOver) {
           statusText = 'Đối thủ đã thoát!';
@@ -1218,6 +1255,7 @@ body {
       };
     } catch(e) {
       document.getElementById('caroJoinError').style.display = '';
+      document.getElementById('caroJoinError').style.color = '#e53935';
       document.getElementById('caroJoinError').textContent = 'Lỗi: ' + e.message;
       return;
     }
