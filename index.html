@@ -669,7 +669,11 @@ body {
   }
 
   function initTrystero(code) {
+    if (typeof RTCPeerConnection === 'undefined') {
+      throw new Error('Trình duyệt không hỗ trợ WebRTC. Vui lòng dùng Chrome/Firefox/Safari và mở qua HTTPS.');
+    }
     const {joinRoom} = Trystero || window.Trystero;
+    if (!joinRoom) throw new Error('Trystero chưa load. F5 thử lại.');
     room = joinRoom({appId: 'caro-game-hub'}, code);
     moveAction = room.makeAction('move');
     moveAction.onMessage = (data, {peerId}) => {
@@ -1205,7 +1209,14 @@ body {
         }
       };
     } catch(e) {
-      document.getElementById('caroCodeDisplay').textContent = 'Lỗi: ' + e.message;
+      var proto = location.protocol;
+      var errMsg = 'Lỗi: ' + e.message;
+      if (typeof RTCPeerConnection === 'undefined') {
+        errMsg += '\n\nWebRTC không khả dụng! Kiểm tra:\n';
+        errMsg += '- Đang dùng: ' + proto + ' (cần HTTPS)\n';
+        errMsg += '- F12 > Console xem lỗi chi tiết';
+      }
+      document.getElementById('caroCodeDisplay').textContent = errMsg;
     }
   }
 
